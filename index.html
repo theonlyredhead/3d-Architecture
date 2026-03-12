@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COCO — Data Platform</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#060a12;font-family:'Inter',sans-serif;}
+
+#topbar{position:fixed;top:0;left:0;right:0;height:48px;background:rgba(6,10,18,0.98);border-bottom:1px solid #162033;display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:200;}
+.tb-brand{display:flex;align-items:center;gap:10px;}
+.tb-logo{font-size:15px;font-weight:700;color:#fff;letter-spacing:-0.01em;}
+.tb-logo span{color:#3B82F6;}
+.tb-div{width:1px;height:12px;background:#162033;}
+.tb-tag{font-family:'JetBrains Mono',monospace;font-size:9px;color:#4A6080;letter-spacing:0.1em;}
+.tb-right{display:flex;align-items:center;gap:8px;}
+
+#filterbar{position:fixed;top:48px;left:0;right:0;height:36px;background:rgba(6,10,18,0.96);border-bottom:1px solid #162033;display:flex;align-items:center;gap:3px;padding:0 16px;z-index:199;overflow-x:auto;}
+#filterbar::-webkit-scrollbar{height:0;}
+.fb{padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid transparent;font-family:'JetBrains Mono',monospace;font-size:8px;color:#4A6080;background:transparent;letter-spacing:0.05em;transition:all 0.15s;white-space:nowrap;flex-shrink:0;}
+.fb:hover{color:#64748B;background:rgba(255,255,255,0.04);}
+.fb.on{color:var(--fc);border-color:var(--fc)30;background:var(--fc)0c;}
+.fb-sep{width:1px;height:16px;background:#162033;margin:0 4px;flex-shrink:0;}
+
+#vctrls{position:fixed;top:48px;right:0;height:36px;display:flex;align-items:center;gap:2px;padding:0 12px;z-index:199;border-bottom:1px solid #162033;border-left:1px solid #162033;background:rgba(6,10,18,0.96);}
+.vc{padding:4px 9px;border-radius:4px;cursor:pointer;border:1px solid transparent;font-family:'JetBrains Mono',monospace;font-size:8px;color:#4A6080;background:transparent;letter-spacing:0.04em;transition:all 0.15s;white-space:nowrap;}
+.vc:hover{color:#64748B;background:rgba(255,255,255,0.04);}
+.vc.on{color:#3B82F6;border-color:#3B82F625;background:#3B82F60c;}
+
+.srch{position:relative;}
+.srch input{padding:6px 30px 6px 12px;background:#0a1525;border:1px solid #1e3044;border-radius:7px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#64748B;outline:none;width:200px;transition:all 0.15s;}
+.srch input::placeholder{color:#2A4060;}
+.srch input:focus{border-color:#3B82F640;color:#94A3B8;}
+.srch-ico{position:absolute;right:9px;top:50%;transform:translateY(-50%);color:#2A4060;font-size:12px;pointer-events:none;}
+#sdrop{position:absolute;top:calc(100% + 4px);right:0;width:280px;background:#080f1c;border:1px solid #162033;border-radius:8px;display:none;max-height:220px;overflow-y:auto;z-index:300;}
+#sdrop.open{display:block;}
+#sdrop::-webkit-scrollbar{width:2px;}
+#sdrop::-webkit-scrollbar-thumb{background:#1E3044;}
+.sdi{padding:8px 12px;cursor:pointer;border-bottom:1px solid #0d1829;display:flex;align-items:center;gap:8px;transition:background 0.1s;}
+.sdi:last-child{border-bottom:none;}
+.sdi:hover{background:#0d1a2e;}
+.sdi-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.sdi-name{font-size:11px;font-weight:600;color:#64748B;}
+.sdi-sub{font-family:'JetBrains Mono',monospace;font-size:8px;color:#334155;margin-top:1px;}
+.sdi-badge{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:7px;padding:2px 5px;border-radius:3px;white-space:nowrap;}
+
+#three-mount{position:fixed;top:84px;left:0;right:0;bottom:0;}
+#three-mount canvas{display:block;width:100%!important;height:100%!important;}
+#label-layer{position:fixed;top:84px;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden;}
+
+/* Column header overlays */
+.col-header{position:absolute;text-align:center;pointer-events:none;transform:translateX(-50%);}
+.ch-title{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#475569;}
+.ch-sub{font-family:'JetBrains Mono',monospace;font-size:8px;color:#334155;margin-top:2px;}
+
+.node-label{position:absolute;transform:translate(-50%,-50%);pointer-events:none;text-align:center;white-space:nowrap;will-change:transform,opacity;}
+.nl-name{font-family:'Inter',sans-serif;font-weight:700;font-size:11px;color:#F1F5F9;line-height:1.2;text-shadow:0 1px 10px #000,0 0 24px #000;}
+.nl-type{font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:2px;text-shadow:0 1px 6px #000;}
+.nl-ent{font-family:'JetBrains Mono',monospace;font-size:7px;margin-top:1px;font-weight:500;text-shadow:0 1px 4px #000;}
+.nl-sync{display:inline-block;width:5px;height:5px;border-radius:50%;margin-top:3px;vertical-align:middle;}
+
+#panel{position:fixed;right:0;top:84px;bottom:0;width:320px;background:#080f1c;border-left:1px solid #162033;transform:translateX(100%);transition:transform 0.32s cubic-bezier(.16,1,.3,1);display:flex;flex-direction:column;z-index:150;}
+#panel.open{transform:translateX(0);}
+.pn-bar{height:2px;flex-shrink:0;}
+.pn-head{padding:14px 16px 12px;border-bottom:1px solid #162033;flex-shrink:0;position:relative;}
+.pn-close{position:absolute;top:12px;right:12px;width:22px;height:22px;background:#0d1829;border:1px solid #1e3044;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748B;font-size:11px;font-family:monospace;transition:all 0.1s;}
+.pn-close:hover{background:#162033;color:#94A3B8;}
+.pn-layer{font-family:'JetBrains Mono',monospace;font-size:7px;letter-spacing:0.12em;text-transform:uppercase;padding:2px 7px;border-radius:20px;display:inline-flex;margin-bottom:8px;}
+.pn-name{font-size:17px;font-weight:700;color:#F1F5F9;letter-spacing:-0.02em;line-height:1.1;}
+.pn-type{font-family:'JetBrains Mono',monospace;font-size:9px;color:#4A6080;margin-top:3px;}
+.pn-desc{font-size:11px;color:#64748B;line-height:1.6;margin-top:9px;}
+.pn-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:9px;}
+.pchip{font-family:'JetBrains Mono',monospace;font-size:7px;padding:2px 7px;border-radius:3px;}
+.pn-body{flex:1;overflow-y:auto;padding:12px 16px 16px;}
+.pn-body::-webkit-scrollbar{width:2px;}
+.pn-body::-webkit-scrollbar-thumb{background:#1E3044;}
+.pn-sec{font-family:'JetBrains Mono',monospace;font-size:8px;color:#4A6080;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;}
+.uc-card{background:#0a1525;border:1px solid #162033;border-radius:6px;padding:9px 11px;margin-bottom:5px;cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;}
+.uc-card:hover{background:#0d1a2e;border-left-color:var(--a);}
+.uc-title{font-size:11px;font-weight:600;color:#94A3B8;margin-bottom:2px;line-height:1.3;}
+.uc-card:hover .uc-title{color:#CBD5E1;}
+.uc-aud{font-family:'JetBrains Mono',monospace;font-size:7px;color:#4A6080;margin-bottom:4px;}
+.uc-imp{font-size:10px;color:#4A6080;font-weight:500;}
+.uc-imp b{color:var(--a);}
+
+#key{position:fixed;left:16px;bottom:16px;display:flex;flex-direction:column;gap:3px;z-index:199;pointer-events:none;}
+.ki{display:flex;align-items:center;gap:6px;padding:3px 8px;background:rgba(6,10,18,0.9);border:1px solid #162033;border-radius:5px;}
+.ki-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.ki-lbl{font-family:'JetBrains Mono',monospace;font-size:7px;color:#4A6080;}
+
+#skey{position:fixed;right:16px;bottom:16px;display:flex;gap:10px;z-index:199;pointer-events:none;background:rgba(6,10,18,0.9);border:1px solid #162033;border-radius:5px;padding:5px 10px;}
+.sk{display:flex;align-items:center;gap:5px;}
+.sk-dot{width:5px;height:5px;border-radius:50%;}
+.sk-lbl{font-family:'JetBrains Mono',monospace;font-size:7px;color:#4A6080;}
+
+#tip{position:fixed;z-index:300;pointer-events:none;opacity:0;transition:opacity 0.1s;background:#0a1525;border:1px solid #1e3044;border-radius:7px;padding:7px 11px;}
+.tip-n{font-size:11px;font-weight:700;color:#CBD5E1;}
+.tip-t{font-family:'JetBrains Mono',monospace;font-size:8px;color:#4A6080;margin-top:2px;}
+.tip-h{font-family:'JetBrains Mono',monospace;font-size:7px;color:#334155;margin-top:3px;}
+
+#ucd{position:fixed;inset:0;z-index:250;background:rgba(6,10,18,0.95);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.18s;}
+#ucd.show{opacity:1;pointer-events:all;}
+.ucd-box{background:#080f1c;border:1px solid #162033;border-radius:12px;width:min(520px,calc(100vw - 32px));max-height:78vh;overflow-y:auto;padding:24px;}
+.ucd-box::-webkit-scrollbar{width:2px;}
+.ucd-box::-webkit-scrollbar-thumb{background:#1E3044;}
+.ucd-close{float:right;background:#0a1525;border:1px solid #1e3044;border-radius:5px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748B;font-size:11px;font-family:monospace;margin:-2px -2px 10px 10px;}
+.ucd-close:hover{background:#162033;color:#94A3B8;}
+.ucd-tag{display:inline-flex;font-family:'JetBrains Mono',monospace;font-size:7px;letter-spacing:0.1em;text-transform:uppercase;padding:2px 7px;border-radius:20px;margin-bottom:9px;}
+.ucd-title{font-size:19px;font-weight:700;color:#F1F5F9;letter-spacing:-0.02em;margin-bottom:2px;}
+.ucd-aud{font-family:'JetBrains Mono',monospace;font-size:9px;color:#4A6080;margin-bottom:12px;}
+.ucd-desc{font-size:12px;color:#94A3B8;line-height:1.65;margin-bottom:14px;}
+.ucd-lbl{font-family:'JetBrains Mono',monospace;font-size:8px;color:#4A6080;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:5px;}
+.ucd-ai{background:#0a1525;border:1px solid #162033;border-left:2px solid #FB923C66;border-radius:6px;padding:10px 12px;font-size:11px;color:#94A3B8;line-height:1.6;margin-bottom:12px;}
+.ucd-impact{background:#0a1525;border:1px solid #162033;border-left:2px solid #34D39966;border-radius:6px;padding:10px 12px;font-size:12px;font-weight:700;color:#34D399;}
+
+#loader{position:fixed;inset:0;background:#060a12;z-index:400;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity 0.6s;}
+#loader.out{opacity:0;pointer-events:none;}
+.l-logo{font-size:36px;font-weight:700;color:#fff;letter-spacing:-0.02em;}
+.l-logo span{color:#3B82F6;}
+.l-track{width:180px;height:1px;background:#162033;}
+.l-fill{height:1px;background:linear-gradient(90deg,#3B82F6,#8B5CF6);width:0;transition:width 0.3s;}
+.l-msg{font-family:'JetBrains Mono',monospace;font-size:9px;color:#4A6080;letter-spacing:0.12em;}
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="l-logo">CO<span>CO</span></div>
+  <div class="l-track"><div class="l-fill" id="lf"></div></div>
+  <div class="l-msg" id="lm">INITIALISING...</div>
+</div>
+
+<div id="topbar">
+  <div class="tb-brand">
+    <div class="tb-logo">CO<span>CO</span></div>
+    <div class="tb-div"></div>
+    <div class="tb-tag">DB-FIRST DATA PLATFORM</div>
+  </div>
+  <div class="tb-right">
+    <div class="srch">
+      <input id="si" placeholder="search systems, use cases…" autocomplete="off">
+      <span class="srch-ico">⌕</span>
+      <div id="sdrop"></div>
+    </div>
+  </div>
+</div>
+
+<div id="filterbar">
+  <button class="fb on" style="--fc:#94A3B8" onclick="setFilter('all',this)">ALL</button>
+  <button class="fb" style="--fc:#FBBF24" onclick="setFilter('Development',this)">DEVELOPMENT</button>
+  <button class="fb" style="--fc:#60A5FA" onclick="setFilter('Construction',this)">CONSTRUCTION</button>
+  <button class="fb" style="--fc:#A78BFA" onclick="setFilter('BTR',this)">BTR</button>
+  <button class="fb" style="--fc:#34D399" onclick="setFilter('Enterprise',this)">ENTERPRISE</button>
+  <button class="fb" style="--fc:#FB7185" onclick="setFilter('outputs',this)">OUTPUTS</button>
+</div>
+
+<div id="vctrls">
+  <button class="vc on" id="vOrbit" onclick="setView('orbit')">⟳ ORBIT</button>
+  <button class="vc" id="vExp"   onclick="toggleExplode()">⊞ EXPLODE</button>
+  <button class="vc" onclick="deselect()">CLEAR</button>
+</div>
+
+<div id="three-mount"></div>
+<div id="label-layer"></div>
+
+<div id="panel">
+  <div class="pn-bar" id="pBar"></div>
+  <div class="pn-head">
+    <button class="pn-close" onclick="deselect()">✕</button>
+    <div class="pn-layer" id="pLayer"></div>
+    <div class="pn-name"  id="pName"></div>
+    <div class="pn-type"  id="pType"></div>
+    <div class="pn-desc"  id="pDesc"></div>
+    <div class="pn-chips" id="pChips"></div>
+  </div>
+  <div class="pn-body" id="pBody"></div>
+</div>
+
+<div id="key">
+  <div class="ki"><div class="ki-dot" style="background:#10B981"></div><span class="ki-lbl">CENTRAL DB</span></div>
+  <div class="ki"><div class="ki-dot" style="background:#3B82F6"></div><span class="ki-lbl">CORE API</span></div>
+  <div class="ki"><div class="ki-dot" style="background:#FB923C"></div><span class="ki-lbl">AI ENGINE</span></div>
+  <div class="ki"><div class="ki-dot" style="background:#64748B"></div><span class="ki-lbl">SOURCE CONNECTOR</span></div>
+  <div class="ki"><div class="ki-dot" style="background:#FB7185"></div><span class="ki-lbl">OUTPUT CONNECTOR</span></div>
+</div>
+<div id="skey">
+  <div class="sk"><div class="sk-dot" style="background:#34D399"></div><span class="sk-lbl">LIVE</span></div>
+  <div class="sk"><div class="sk-dot" style="background:#FBBF24"></div><span class="sk-lbl">HOURLY</span></div>
+  <div class="sk"><div class="sk-dot" style="background:#475569"></div><span class="sk-lbl">NIGHTLY</span></div>
+  <div class="sk"><div class="sk-dot" style="background:#334155"></div><span class="sk-lbl">MANUAL</span></div>
+</div>
+
+<div id="tip"><div class="tip-n" id="tn"></div><div class="tip-t" id="tt"></div><div class="tip-h">click to explore</div></div>
+
+<div id="ucd" onclick="if(event.target===this)closeUCD()">
+  <div class="ucd-box" id="ucdBox"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════ DATA ═══════════════════════════════════════
+const ENT_COL={Development:'#FBBF24',Construction:'#60A5FA',BTR:'#A78BFA',Enterprise:'#34D399',Output:'#FB7185'};
+const SYNC_COL={realtime:'#34D399',hourly:'#FBBF24',nightly:'#475569',manual:'#334155'};
+const SYNC_LBL={realtime:'REAL-TIME',hourly:'HOURLY',nightly:'NIGHTLY',manual:'MANUAL'};
+const KIND_LABEL={source:'Source Connector',output:'Output Connector',api:'Core API',db:'Central Database',ai:'AI Engine'};
+const KIND_COL={source:'#64748B',output:'#FB7185',api:'#3B82F6',db:'#10B981',ai:'#FB923C'};
+
+const SOURCES=[
+  {id:'hubspot',name:'HubSpot',type:'CRM & Sales',ent:'Development',hex:'#FBBF24',sync:'hourly',w:6,
+   desc:'Sales pipeline, buyer lifecycle, marketing automation, and lead scoring across all development projects.',
+   uc:[{t:'Sales Pipeline & Conversion',a:'Development Director',d:'Live buyer pipeline from enquiry to settlement. Conversion by stage, channel, and agent.',ai:'AI generates weekly pipeline summary with movement highlights emailed to leadership.',imp:'Forecast settlement revenue with confidence'},
+       {t:'Settlement Tracker',a:'Dev Director / CFO',d:'Every lot in settlement. Finance approval, sunset risk, receipt forecasts.',ai:'Flags at-risk settlements where buyer finance approval is overdue.',imp:'No settlement surprises, accurate cash receipts forecast'},
+       {t:'Marketing ROI',a:'Marketing Manager',d:'Spend vs enquiry volume, quality, and conversion. Cost per lead and per sale.',ai:'Multi-touch attribution allocates credit across the full buyer journey.',imp:'Spend marketing dollars where they actually convert'},
+       {t:'Buyer Demographics',a:'Development Director',d:'Age, location, buyer type, unit preference, price sensitivity.',ai:'Clusters buyer profiles and maps preferences to unit types.',imp:'Design products people actually want'},
+       {t:'Lead Source Attribution',a:'Marketing Manager',d:'First and multi-touch attribution by channel.',ai:'ML identifies lead sources that produce fastest time-to-sale.',imp:'Invest in channels that produce buyers not browsers'},
+       {t:'Campaign Performance',a:'Marketing Manager',d:'Every campaign: spend, impressions, clicks, enquiries, conversions.',ai:'Predictive lead scoring ranks enquiries by likelihood to convert.',imp:'Know exactly which campaigns drive revenue'}]},
+  {id:'acumatica',name:'Acumatica',type:'Finance & ERP',ent:'Enterprise',hex:'#34D399',sync:'nightly',w:5,
+   desc:'Core ERP across all four entities. P&L, AP, AR, intercompany reconciliation, and treasury.',
+   uc:[{t:'Group Financial Oversight',a:'CEO / CFO / Board',d:'Consolidated P&L, cash flow, budget vs actual. Refreshed daily.',ai:'Anomaly detection flags unusual cost movements before month-end close.',imp:'Single source of truth for group financials'},
+       {t:'Cash Flow Forecasting',a:'CFO / Treasury',d:'Rolling 12-month forecast: drawdowns, settlements, BTR rental, capital calls.',ai:'Predictive modelling adjusts forecasts based on historical patterns.',imp:'Avoid cash surprises, plan drawdowns with confidence'},
+       {t:'Intercompany Reconciliation',a:'CFO / Finance',d:'Automated matching across all entities. Unmatched items flagged daily.',ai:'Pattern matching identifies systematic miscodings.',imp:'Cut month-end close time'},
+       {t:'Tax & BAS Compliance',a:'CFO / Tax',d:'GST position, BAS lodgement, input tax credit reconciliation.',ai:'Flags transactions with incorrect GST coding before BAS lodgement.',imp:'Lodge BAS with confidence, reduce ATO risk'},
+       {t:'Debt Covenant Monitoring',a:'CFO / Treasury',d:'Live tracking of all debt covenants: LVR, ICR, DSCR.',ai:'Early warning alerts when covenant metrics trend toward breach.',imp:'Maintain lender confidence'}]},
+  {id:'ipm',name:'IPM Global',type:'Cost Mgmt / Investor',ent:'Development',hex:'#38BDF8',sync:'nightly',w:3,
+   desc:'Cost management, investor reporting, capital call tracking, GFA and yield management.',
+   uc:[{t:'Capital Allocation Review',a:'CEO / CFO / Board',d:'Where is capital deployed? Returns by project, fund, and asset class.',ai:'Scenario modelling: redeploy capital from land bank to BTR?',imp:'Deploy capital where returns are highest'},
+       {t:'Investor Fund Reporting',a:'CEO / Fund Manager',d:'Automated investor packs: IRR, equity multiples, distributions.',ai:'AI drafts narrative commentary on fund performance.',imp:'Investor packs in hours not weeks'},
+       {t:'Development Fund Waterfall',a:'CFO / Fund Manager',d:'Automated waterfall: preferred returns, catch-up, carried interest.',ai:'Scenario modelling shows waterfall impact of exit timing.',imp:'Transparent investor returns'}]},
+  {id:'excel',name:'Excel Models',type:'Feasibility & Acquisitions',ent:'Development',hex:'#E879F9',sync:'manual',w:3,
+   desc:'Feasibility models, acquisitions analysis, residual land value, and sensitivity analysis.',
+   uc:[{t:'Feasibility Model Registry',a:'Development Director',d:'Central register: version history, approval status, key assumptions.',ai:'AI detects when a model has not been updated in line with cost changes.',imp:'One place to find every feasibility, always current'},
+       {t:'Assumption Benchmarking',a:'Dev Director / CFO',d:'Compare assumptions across all projects. Flags outliers vs actuals.',ai:'Benchmarks assumptions and flags those outside one standard deviation.',imp:'Stop optimistic assumptions surviving into approved feasibilities'},
+       {t:'Sensitivity Dashboard',a:'Directors / Board',d:'Standardised sensitivity: cost +5%, prices -10%, programme +3 months.',ai:'Monte Carlo simulation produces probability-weighted return ranges.',imp:'Understand downside risk before committing capital'}]},
+  {id:'jobpac',name:'Jobpac',type:'Project Costing',ent:'Construction',hex:'#60A5FA',sync:'nightly',w:4,
+   desc:'Construction cost management, subcontractor payments, variation tracking.',
+   uc:[{t:'Project Cost Performance',a:'Construction Director',d:'Cost-to-complete, committed vs actual, forecast final cost.',ai:'Natural language Q&A over live construction data.',imp:'Protect margins with early intervention'},
+       {t:'Variation & Claims Exposure',a:'Construction Director / CFO',d:'Total variation exposure: approved, pending, disputed.',ai:'Clusters variation patterns to identify systemic design gaps.',imp:'Quantify risk exposure at any point'},
+       {t:'Subcontractor Performance',a:'Construction Director',d:'Payment status, retention, defect rates, programme compliance.',ai:'Subcontractor scoring model for future tender shortlisting.',imp:'Better subbie selection, fewer defects'},
+       {t:'Earned Value Analysis',a:'Construction Director',d:'Planned vs earned vs actual. SPI and CPI auto-calculated.',ai:'EAC projections auto-calculated, flagging over-budget projects.',imp:'Industry-standard measurement, no spreadsheets'}]},
+  {id:'aconex',name:'Oracle Aconex',type:'Document Control',ent:'Construction',hex:'#818CF8',sync:'hourly',w:3,
+   desc:'Document control, RFI tracking, hold points, and compliance certification.',
+   uc:[{t:'Design Documentation Progress',a:'Construction Director',d:'Document issue status mapped against programme milestones.',ai:'Predicts programme impact of late documentation.',imp:'Stop documentation delays becoming programme delays'},
+       {t:'QA Audit Trail',a:'Construction Director',d:'Inspection results, NCRs, hold points, rectification status.',ai:'Identifies which trades consistently fail first inspection.',imp:'Systemic quality improvement, fewer defects at handover'},
+       {t:'Lessons Learned Repository',a:'All PMs',d:'Searchable database of project lessons.',ai:'AI retrieves relevant lessons for new projects.',imp:'Stop repeating the same mistakes'}]},
+  {id:'asta',name:'Asta / MS Project',type:'Programme & Resources',ent:'Construction',hex:'#A3E635',sync:'nightly',w:3,
+   desc:'Construction programme management, critical path, resource loading.',
+   uc:[{t:'Programme Slippage',a:'Construction Director',d:'Which activities slipped? Baseline vs current, float analysis.',ai:'Identifies delay patterns across projects.',imp:'Intervene before delays compound'},
+       {t:'Resource Loading',a:'Construction Director',d:'Planned vs actual resource allocation. Bottlenecks flagged.',ai:'Capacity planning flags conflicts when multiple projects peak.',imp:'Right people on the right projects'},
+       {t:'OC Readiness',a:'Construction Director',d:'Stage 1 OC: inspections, certs, services commissioned.',ai:'AI assesses OC readiness probability.',imp:'Hit OC dates, start earning income sooner'}]},
+  {id:'propertytree',name:'PropertyTree',type:'Property Management',ent:'BTR',hex:'#A78BFA',sync:'hourly',w:3,
+   desc:'BTR leasing, arrears, maintenance, tenant lifecycle, rental income.',
+   uc:[{t:'Portfolio Performance',a:'BTR Director / Investors',d:'Occupancy, rental income, opex per unit, NOI, resident satisfaction.',ai:'Benchmarks each asset against portfolio averages.',imp:'Maximise NOI and investor confidence'},
+       {t:'Leasing Velocity & Vacancy',a:'BTR Director',d:'Days on market, enquiry-to-lease conversion, upcoming expiries.',ai:'Dynamic pricing recommendations based on demand signals.',imp:'Minimise vacancy loss, optimise rental pricing'},
+       {t:'Rent Arrears & Collections',a:'BTR Director / Finance',d:'Arrears by asset, unit, age. Collection effectiveness.',ai:'Prioritises collection effort and predicts escalation to bad debt.',imp:'Minimise arrears, protect rental income'}]},
+  {id:'connecx',name:'ConnecX',type:'Resident Services',ent:'BTR',hex:'#C084FC',sync:'realtime',w:2,
+   desc:'Resident portal for maintenance, amenity bookings, communication.',
+   uc:[{t:'Resident Experience & Retention',a:'BTR Director',d:'Satisfaction scores, complaint categories, renewal rates.',ai:'Sentiment analysis identifies emerging issues before they trend.',imp:'Higher retention, lower turnover cost'},
+       {t:'Common Area Utilisation',a:'BTR Director',d:'Gym, pool, co-working, rooftop usage by time and season.',ai:'Identifies underutilised amenities and suggests programming changes.',imp:'Invest in amenities residents actually use'}]},
+  {id:'blogix',name:'BLogix',type:'Building Systems',ent:'BTR',hex:'#22D3EE',sync:'realtime',w:2,
+   desc:'Energy, utilities, access control, HVAC, and IoT sensors.',
+   uc:[{t:'Energy & Utilities Management',a:'BTR Director / Facilities',d:'Consumption, water, utility costs by asset, floor, common area.',ai:'Anomaly detection identifies unusual consumption spikes.',imp:'Reduce utility costs and environmental footprint'},
+       {t:'ESG Reporting',a:'CEO / Board / Investors',d:'Energy ratings, waste diversion, green certifications.',ai:'AI maps operational data to ESG frameworks (GRESB, NABERS).',imp:'Investor-grade ESG reporting from operational data'}]},
+  {id:'elmo',name:'ELMO',type:'HR & Payroll',ent:'Enterprise',hex:'#4ADE80',sync:'nightly',w:2,
+   desc:'HR, payroll, performance, learning, compliance training.',
+   uc:[{t:'Workforce Analytics',a:'COO / HR',d:'Headcount, turnover, leave liability, workforce cost by entity.',ai:'Attrition risk scoring highlights retention concerns before resignation.',imp:'Data-driven workforce planning'},
+       {t:'Compliance & Certification',a:'COO / Risk',d:'Expiring licences, mandatory training, WHS compliance.',ai:'Automated alerts when certifications approach expiry.',imp:'Never be caught with an expired licence on site'}]},
+];
+
+const OUTPUTS=[
+  {id:'pbi',name:'Power BI',type:'Executive Dashboards',ent:'Output',hex:'#F43F5E',w:6,
+   desc:'100+ dashboards across all business areas. Role-filtered by entity and seniority.',
+   uc:[{t:'Strategic KPI Dashboard',a:'CEO / Board',d:'Top-level KPIs: revenue, margin, pipeline, occupancy, cash, headcount.',ai:'Auto-generates board narrative from live KPIs.',imp:'Board meetings driven by live data'},
+       {t:'Project Scorecards',a:'Directors / Board',d:'One-page per project: programme, cost, sales, risks.',ai:'Auto-generates project status narrative.',imp:'Consistent comparable reporting across the portfolio'},
+       {t:'BTR Portfolio View',a:'BTR Director / Investors',d:'NOI, occupancy, arrears, resident satisfaction.',ai:'Benchmarks each asset with trend overlays.',imp:'Investor-grade BTR reporting from a single screen'},
+       {t:'Financial Oversight',a:'CFO / CEO',d:'Consolidated P&L, cash flow, budget vs actual. Daily refresh.',ai:'Anomaly detection surfaces unusual movements.',imp:'One set of numbers, refreshed daily'},
+       {t:'Construction Dashboard',a:'Construction Director',d:'Cost performance, programme, variation exposure, OC readiness.',ai:'Natural language Q&A over live construction data.',imp:'Board-level visibility of every project'},
+       {t:'Sales Pipeline Dashboard',a:'Development Director',d:'Live buyer pipeline, settlement tracker, marketing ROI.',ai:'AI-generated weekly pipeline narrative.',imp:'Forecast settlement revenue with confidence'}]},
+  {id:'ai_assist',name:'AI Assistant',type:'Conversational Q&A',ent:'Output',hex:'#E879F9',w:3,
+   desc:'Plain-English Q&A over all company data via API.',
+   uc:[{t:'Cross-system queries',a:'All staff / Leadership',d:'"What is the margin on Project X vs original feasibility?"',ai:'Claude joins all connector data to answer in plain English.',imp:'Questions that took analysts hours, done in seconds'},
+       {t:'Policy & compliance Q&A',a:'All staff',d:'HR policies, privacy obligations, procurement rules, safety.',ai:'RAG retrieval surfaces policy documents with clause-level citations.',imp:'Staff self-serve compliance answers'},
+       {t:'Contract review',a:'Legal / Directors',d:'Upload a contract: key risks, comparison to standard terms.',ai:'Claude analyses terms against COCO standard positions.',imp:'Faster contract review, fewer missed clauses'}]},
+  {id:'reports',name:'Auto-Reports',type:'Scheduled Delivery',ent:'Output',hex:'#FB923C',w:2,
+   desc:'Automated generation of board packs, investor updates, management accounts.',
+   uc:[{t:'Monthly Board Pack',a:'CEO / Secretary',d:'Automated assembly: financials, projects, sales, BTR, risk, people.',ai:'Claude drafts each section, highlights material changes.',imp:'Board pack from days to hours'},
+       {t:'Weekly Investor Update',a:'Fund Manager',d:'Fund performance and distribution updates.',ai:'Claude personalises language per investor relationship.',imp:'Investor comms at scale without manual effort'}]},
+  {id:'briefing',name:'Board Intelligence',type:'AI Executive Briefings',ent:'Output',hex:'#A78BFA',w:2,
+   desc:'Monday AI-generated executive briefing — KPIs, movements, risks, actions.',
+   uc:[{t:'Monday Morning Briefing',a:'CEO / Directors',d:'Material KPI movements across the group from the prior week.',ai:'Claude identifies the 5 most significant movements as narrative.',imp:'Leadership starts Monday informed not catching up'},
+       {t:'Risk Alerts',a:'CEO / Risk',d:'Real-time alerts when data triggers thresholds.',ai:'Continuous monitoring triggers Claude to generate contextual alerts.',imp:'Issues surfaced in minutes not at month-end'}]},
+];
+
+const ALL=[...SOURCES,...OUTPUTS];
+const ALL_UCS=[];ALL.forEach(n=>{if(n.uc)n.uc.forEach(u=>ALL_UCS.push({...u,srcNode:n}));});
+
+// ═══════════════════════ THREE.JS SETUP ═════════════════════════════
+const mount=document.getElementById('three-mount');
+const labelLayer=document.getElementById('label-layer');
+const W=()=>mount.clientWidth, H=()=>mount.clientHeight;
+
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(W(),H());
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.15;
+renderer.shadowMap.enabled=true;
+mount.appendChild(renderer.domElement);
+
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x060a12,0.006);
+
+const camera=new THREE.PerspectiveCamera(50,W()/H(),0.1,500);
+
+// Lights
+scene.add(new THREE.AmbientLight(0x0a1428,5));
+const lA=new THREE.PointLight(0x3B82F6,22,110);lA.position.set(-35,25,12);scene.add(lA);
+const lB=new THREE.PointLight(0x10B981,14,90);lB.position.set(0,12,6);scene.add(lB);
+const lC=new THREE.PointLight(0xFB923C,10,80);lC.position.set(32,18,-12);scene.add(lC);
+const lD=new THREE.DirectionalLight(0x1a2840,2);lD.position.set(0,40,20);scene.add(lD);
+
+// Grid
+const grid=new THREE.GridHelper(200,56,0x060c16,0x060a12);grid.position.y=-14;grid.material.transparent=true;grid.material.opacity=0.35;scene.add(grid);
+
+// ═══════════════════════ LAYOUT ══════════════════════════════════════
+const SRC_X=-32, OUT_X=30, CORE_X=0;
+const SRC_SPACING=5.0, OUT_SPACING=7.2;
+const SRC_Z_STAGGER=3.5; // meaningful depth stagger
+const SRC_COUNT=SOURCES.length, OUT_COUNT=OUTPUTS.length;
+
+function srcY(i){ return (SRC_COUNT-1)*SRC_SPACING/2 - i*SRC_SPACING; }
+function srcZ(i){ return Math.sin(i/(SRC_COUNT-1)*Math.PI)*SRC_Z_STAGGER - SRC_Z_STAGGER*0.5; }
+function outY(i){ return (OUT_COUNT-1)*OUT_SPACING/2 - i*OUT_SPACING; }
+function outZ(i){ return 0; }
+
+// Base positions (for explode animation)
+const basePosById={};
+
+// ═══════════════════════ NODE MESHES ═════════════════════════════════
+const meshById={}, groupById={}, nodeData={};
+const clickables=[];
+
+function h3(h){return parseInt(h.replace('#',''),16);}
+function h3v(h){const c=new THREE.Color();c.set(h);return c;}
+
+function makeNode(id,x,y,z,radius,hex,data,kind){
+  const col=h3(hex);
+  const geo=new THREE.SphereGeometry(radius,40,40);
+  const mat=new THREE.MeshStandardMaterial({
+    color:col,emissive:col,emissiveIntensity:0.28,
+    metalness:0.3,roughness:0.55,
+  });
+  const mesh=new THREE.Mesh(geo,mat);
+  mesh.castShadow=true;
+
+  const grp=new THREE.Group();
+  grp.position.set(x,y,z);
+  grp.add(mesh);
+  scene.add(grp);
+
+  meshById[id]=mesh;
+  groupById[id]=grp;
+  nodeData[id]={data,kind,radius,hex,origEI:0.28};
+  clickables.push(mesh);
+  mesh.userData={id,kind};
+  basePosById[id]={x,y,z};
+
+  const isCore=kind==='db'||kind==='api'||kind==='ai';
+
+  // Halo rings for core nodes
+  if(isCore){
+    const r1=new THREE.RingGeometry(radius*1.4,radius*1.65,64);
+    const m1=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.15,side:THREE.DoubleSide,depthWrite:false});
+    const ring1=new THREE.Mesh(r1,m1);ring1.rotation.x=-Math.PI/2;
+    grp.add(ring1);
+
+    if(kind==='db'){
+      // Extra outer glow ring for DB
+      const r2=new THREE.RingGeometry(radius*1.9,radius*2.15,64);
+      const m2=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.06,side:THREE.DoubleSide,depthWrite:false});
+      const ring2=new THREE.Mesh(r2,m2);ring2.rotation.x=-Math.PI/2;
+      grp.add(ring2);
+      grp._ring1=ring1;grp._ring2=ring2;
+    }
+  }
+
+  // Live pulse ring for realtime sources
+  if(data.sync==='realtime'){
+    const pr=new THREE.RingGeometry(radius*1.2,radius*1.35,48);
+    const pm=new THREE.MeshBasicMaterial({color:h3('#34D399'),transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false});
+    const pring=new THREE.Mesh(pr,pm);pring.rotation.x=-Math.PI/2;
+    grp.add(pring);
+    grp._liveRing=pring;
+    grp._liveRingMat=pm;
+  }
+
+  return {mesh,grp};
+}
+
+// Source nodes
+SOURCES.forEach((s,i)=>{
+  const r=0.85+(s.w/6)*0.55;
+  makeNode(s.id,SRC_X,srcY(i),srcZ(i),r,s.hex,s,'source');
+});
+
+// Output nodes
+OUTPUTS.forEach((o,i)=>{
+  const r=1.05+(o.w/6)*0.7;
+  makeNode(o.id,OUT_X,outY(i),outZ(i),r,o.hex,o,'output');
+});
+
+// Core nodes
+makeNode('db', CORE_X, 0,    0, 3.4,'#10B981',{id:'db', name:'Central DB',  sub:'Azure SQL + pgvector',hex:'#10B981',desc:'DB-first architecture. Single source of truth. Full audit trail, row-level security, 90-day history, and pgvector embeddings for AI search. Every connector writes here, nothing bypasses it.'},'db');
+makeNode('api',CORE_X, 5.8,  0, 2.5,'#3B82F6',{id:'api',name:'COCO API',   sub:'REST / GraphQL',    hex:'#3B82F6',desc:'Single API layer. All connectors authenticate here. Handles transformation, rate limiting, schema validation, versioning, and routing between all source and output connectors.'},'api');
+makeNode('ai', CORE_X,-5.8,  0, 2.1,'#FB923C',{id:'ai', name:'AI Engine',  sub:'Bedrock + Claude 3.5',hex:'#FB923C',desc:'AWS Bedrock running Claude 3.5 Sonnet in ap-southeast-2. Reads from DB via API. Powers natural language generation, RAG retrieval, anomaly detection, and scheduled briefings. All data stays in-region.'},'ai');
+
+// ═══════════════════════ GLOW BEAM CONNECTIONS ═══════════════════════
+// Each connection = a QuadraticBezierCurve3 sampled into a series of
+// billboard quad segments with a canvas glow texture — soft, luminous,
+// scales correctly with camera distance.
+
+const pipes=[];
+const pipeById={};
+const maxW=Math.max(...SOURCES.map(s=>s.w));
+const apiGrp=groupById['api'],dbGrp=groupById['db'],aiGrp=groupById['ai'];
+
+// Build a radial glow texture once — white core fading to transparent
+function makeGlowTex(hexStr,size=64){
+  const c=document.createElement('canvas');c.width=size;c.height=size;
+  const ctx=c.getContext('2d');
+  const col=new THREE.Color(hexStr);
+  const r=size/2;
+  const g=ctx.createRadialGradient(r,r,0,r,r,r);
+  g.addColorStop(0,  `rgba(${Math.round(col.r*255)},${Math.round(col.g*255)},${Math.round(col.b*255)},1)`);
+  g.addColorStop(0.3,`rgba(${Math.round(col.r*255)},${Math.round(col.g*255)},${Math.round(col.b*255)},0.6)`);
+  g.addColorStop(1,  `rgba(${Math.round(col.r*255)},${Math.round(col.g*255)},${Math.round(col.b*255)},0)`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,size,size);
+  const tex=new THREE.CanvasTexture(c);
+  return tex;
+}
+
+// Build glow beam from a curve using billboard quads at each sample point
+function makeGlowBeam(curve,hex,weight,srcId,outId,kind){
+  const SEGS=28;
+  const beamW=weight;
+  const col=new THREE.Color(hex);
+  const tex=makeGlowTex(hex,64);
+
+  // Use a line of PlaneGeometry billboards along the curve
+  const group=new THREE.Group();
+  const mats=[];
+  const meshes=[];
+
+  for(let i=0;i<=SEGS;i++){
+    const t=i/SEGS;
+    const pos=curve.getPoint(t);
+    const geo=new THREE.PlaneGeometry(beamW,beamW);
+    const mat=new THREE.MeshBasicMaterial({
+      map:tex,transparent:true,opacity:0.12,
+      depthWrite:false,side:THREE.DoubleSide,
+      blending:THREE.AdditiveBlending,
+    });
+    const m=new THREE.Mesh(geo,mat);
+    m.position.copy(pos);
+    group.add(m);
+    mats.push(mat);
+    meshes.push(m);
+  }
+
+  // Arrow indicator — a larger billboard at 58% along curve, slightly brighter
+  const arrowPos=curve.getPoint(0.58);
+  const arrowTex=makeGlowTex(hex,32);
+  const arrowMat=new THREE.MeshBasicMaterial({map:arrowTex,transparent:true,opacity:0.18,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
+  const arrowMesh=new THREE.Mesh(new THREE.PlaneGeometry(beamW*2.2,beamW*2.2),arrowMat);
+  arrowMesh.position.copy(arrowPos);
+  group.add(arrowMesh);
+  mats.push(arrowMat);
+
+  scene.add(group);
+
+  const p={group,mats,meshes,arrowMesh,curve,hex,srcId,outId,kind,baseOp:0.12,weight,col};
+  pipes.push(p);
+  if(srcId)pipeById[srcId]=p;
+  if(outId)pipeById[outId]=p;
+  return p;
+}
+
+function buildCurve(p0v,p1v,liftY=1.2){
+  const mid=new THREE.Vector3((p0v.x+p1v.x)/2,(p0v.y+p1v.y)/2+liftY,(p0v.z+p1v.z)/2);
+  return new THREE.QuadraticBezierCurve3(p0v,mid,p1v);
+}
+
+// Source → API
+SOURCES.forEach(s=>{
+  const sg=groupById[s.id];
+  const w=0.3+(s.w/maxW)*0.55;
+  const curve=buildCurve(sg.position.clone(),apiGrp.position.clone(),0.8);
+  makeGlowBeam(curve,s.hex,w,s.id,null,'s-api');
+});
+
+// API → Output
+OUTPUTS.forEach(o=>{
+  const og=groupById[o.id];
+  const w=0.35+(o.w/6)*0.45;
+  const curve=buildCurve(apiGrp.position.clone(),og.position.clone(),0.8);
+  makeGlowBeam(curve,o.hex,w,null,o.id,'api-o');
+});
+
+// Core connections — stronger glow
+const coreA=buildCurve(apiGrp.position.clone(),dbGrp.position.clone(),0.5);
+makeGlowBeam(coreA,'#3B82F6',1.1,null,null,'core');
+const coreB=buildCurve(dbGrp.position.clone(),aiGrp.position.clone(),0.5);
+makeGlowBeam(coreB,'#10B981',0.9,null,null,'core');
+
+// Billboard update — face all beam quads toward camera each frame
+function updateBeamBillboards(){
+  pipes.forEach(p=>{
+    p.meshes.forEach(m=>m.lookAt(camera.position));
+    if(p.arrowMesh)p.arrowMesh.lookAt(camera.position);
+  });
+}
+
+const arrowMeshes=[]; // kept for API compat (applyDim references it)
+
+// ═══════════════════════ PULSE PARTICLES (Points-based) ═══════════════
+// Each connection gets 2-3 staggered pulses. Larger points, faster movement,
+// per-point opacity encoded as a size-scale trick via position update.
+const PULSE_COUNT=60;
+const pPos=new Float32Array(PULSE_COUNT*3);
+const pCol=new Float32Array(PULSE_COUNT*3);
+const pulseDefs=[];
+
+const pGeo=new THREE.BufferGeometry();
+pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+pGeo.setAttribute('color',new THREE.BufferAttribute(pCol,3));
+
+const pMat=new THREE.PointsMaterial({size:0.55,vertexColors:true,transparent:true,opacity:0.95,depthWrite:false,sizeAttenuation:true});
+const pPoints=new THREE.Points(pGeo,pMat);
+scene.add(pPoints);
+
+let pi=0;
+function assignPulse(curve,hex,count=2){
+  for(let i=0;i<count;i++){
+    if(pi>=PULSE_COUNT)return;
+    const c=new THREE.Color(hex);
+    pCol[pi*3]=c.r;pCol[pi*3+1]=c.g;pCol[pi*3+2]=c.b;
+    // stagger start positions so they don't bunch
+    pulseDefs.push({idx:pi,curve,t:(i/count)+Math.random()*0.1,s:0.007+Math.random()*0.006});
+    pi++;
+  }
+}
+
+// Source → API: 2 pulses each
+pipes.filter(p=>p.kind==='s-api').forEach(p=>assignPulse(p.curve,p.hex,2));
+// Core: 3 pulses each
+pipes.filter(p=>p.kind==='core').forEach(p=>assignPulse(p.curve,p.hex,3));
+// API → Output: 2 each
+pipes.filter(p=>p.kind==='api-o').forEach(p=>assignPulse(p.curve,p.hex,2));
+
+// ═══════════════════════ AMBIENT PARTICLES ════════════════════════════
+const AP=200;const apGeo=new THREE.BufferGeometry();
+const apPos=new Float32Array(AP*3);const apCol2=new Float32Array(AP*3);
+const PAL=[[0.23,0.51,0.97],[0.06,0.69,0.51],[0.98,0.57,0.24],[0.53,0.33,0.98]];
+for(let i=0;i<AP;i++){
+  apPos[i*3]=(Math.random()-0.5)*100;
+  apPos[i*3+1]=Math.random()*28-8;
+  apPos[i*3+2]=(Math.random()-0.5)*40;
+  const c=PAL[i%4];apCol2[i*3]=c[0];apCol2[i*3+1]=c[1];apCol2[i*3+2]=c[2];
+}
+apGeo.setAttribute('position',new THREE.BufferAttribute(apPos,3));
+apGeo.setAttribute('color',new THREE.BufferAttribute(apCol2,3));
+scene.add(new THREE.Points(apGeo,new THREE.PointsMaterial({size:0.05,vertexColors:true,transparent:true,opacity:0.35,sizeAttenuation:true})));
+
+// ═══════════════════════ CSS2D LABELS ════════════════════════════════
+const labelEls={};
+// Column headers
+const colHeaders={};
+
+function makeLabel(id,data,kind){
+  const div=document.createElement('div');div.className='node-label';
+  const isCore=kind==='db'||kind==='api'||kind==='ai';
+  const nm=document.createElement('div');nm.className='nl-name';
+  nm.style.fontSize=(isCore?13:11)+'px';nm.textContent=data.name;div.appendChild(nm);
+  const tp=document.createElement('div');tp.className='nl-type';tp.textContent=data.type||data.sub||'';div.appendChild(tp);
+  if(data.ent&&data.ent!=='Output'){
+    const e=document.createElement('div');e.className='nl-ent';
+    e.style.color=ENT_COL[data.ent]||'#64748B';e.textContent=data.ent;div.appendChild(e);
+  }
+  if(data.sync){
+    const s=document.createElement('span');s.className='nl-sync';
+    s.style.background=SYNC_COL[data.sync]||'#334155';
+    s.title=SYNC_LBL[data.sync]||data.sync;
+    div.appendChild(s);
+  }
+  labelLayer.appendChild(div);
+  labelEls[id]=div;
+}
+
+Object.entries(nodeData).forEach(([id,nd])=>makeLabel(id,nd.data,nd.kind));
+
+// Column header divs (fixed overlay positioned per-frame)
+function makeColHeader(id,title,sub){
+  const div=document.createElement('div');div.className='col-header';
+  div.innerHTML=`<div class="ch-title">${title}</div><div class="ch-sub">${sub}</div>`;
+  labelLayer.appendChild(div);colHeaders[id]=div;
+}
+makeColHeader('src','← SOURCE CONNECTORS',`${SOURCES.length} SYSTEMS`);
+makeColHeader('out','OUTPUT CONNECTORS →',`${OUTPUTS.length} CHANNELS`);
+makeColHeader('core','CORE PLATFORM','API · DB · AI');
+
+// ═══════════════════════ LABEL PROJECTION ════════════════════════════
+const _v3=new THREE.Vector3();
+
+// Track screen positions for label deconfliction
+const screenPos={};
+
+function updateLabels(){
+  const cw=mount.clientWidth,ch=mount.clientHeight;
+
+  // Collect all positions first (for deconfliction)
+  const positions=[];
+  Object.entries(groupById).forEach(([id,grp])=>{
+    const nd=nodeData[id];if(!nd)return;
+    _v3.copy(grp.position);_v3.y+=nd.radius+0.55;
+    const ndc=_v3.clone().project(camera);
+    if(ndc.z>1){screenPos[id]=null;return;}
+    const sx=(ndc.x*0.5+0.5)*cw;
+    const sy=(-ndc.y*0.5+0.5)*ch;
+    const dist=camera.position.distanceTo(grp.position);
+    const isCore=nd.kind==='db'||nd.kind==='api'||nd.kind==='ai';
+    screenPos[id]={sx,sy,dist,isCore,id};
+    positions.push(screenPos[id]);
+  });
+
+  // Deconflict: hide labels that are within 36px of a higher-priority label
+  const shown=new Set();
+  // Priority order: core first, then by distance (closer = higher priority)
+  positions.sort((a,b)=>{
+    if(a.isCore!==b.isCore)return a.isCore?-1:1;
+    return a.dist-b.dist;
+  });
+  positions.forEach(p=>{
+    if(!p)return;
+    let tooClose=false;
+    shown.forEach(sid=>{
+      const s=screenPos[sid];if(!s)return;
+      const dx=p.sx-s.sx,dy=p.sy-s.sy;
+      if(Math.sqrt(dx*dx+dy*dy)<38)tooClose=true;
+    });
+    // Always show core and selected
+    if(p.isCore||p.id===selectedId)tooClose=false;
+    if(!tooClose)shown.add(p.id);
+  });
+
+  Object.entries(groupById).forEach(([id,grp])=>{
+    const el=labelEls[id];if(!el)return;
+    const sp=screenPos[id];
+    if(!sp||!shown.has(id)){el.style.opacity='0';return;}
+    const nd=nodeData[id];
+    const dim=isDimmed(id);
+    const dist=sp.dist;
+    const fade=sp.isCore?1:Math.max(0,Math.min(1,(95-dist)/40));
+    el.style.left=sp.sx+'px';el.style.top=sp.sy+'px';
+    el.style.opacity=String(dim?fade*0.08:fade);
+    el.style.display='block';
+  });
+
+  // Column headers — project from world anchor points
+  const srcAnchor=new THREE.Vector3(SRC_X-2,((SRC_COUNT-1)*SRC_SPACING/2)+8,0);
+  const outAnchor=new THREE.Vector3(OUT_X+2,((OUT_COUNT-1)*OUT_SPACING/2)+8,0);
+  const coreAnchor=new THREE.Vector3(CORE_X,14,0);
+  [[srcAnchor,'src'],[outAnchor,'out'],[coreAnchor,'core']].forEach(([anchor,hid])=>{
+    const ndc=anchor.clone().project(camera);
+    const el=colHeaders[hid];if(!el)return;
+    if(ndc.z>1){el.style.opacity='0';return;}
+    const sx=(ndc.x*0.5+0.5)*cw;
+    const sy=(-ndc.y*0.5+0.5)*ch;
+    el.style.left=sx+'px';el.style.top=sy+'px';
+    el.style.opacity='0.7';
+  });
+}
+
+// ═══════════════════════ CAMERA ══════════════════════════════════════
+let theta=Math.PI*0.06,phi=1.05,radius=72;
+let tTheta=theta,tPhi=phi,tRadius=radius;
+let dragging=false,lx=0,ly2=0,autoOrbit=true;
+let flyActive=false,idleT=null;
+const lookAt=new THREE.Vector3(0,0,0);
+const tLookAt=new THREE.Vector3(0,0,0);
+
+function camTick(){
+  if(flyActive)return;
+  if(!dragging){
+    theta+=(tTheta-theta)*0.055;
+    phi  +=(tPhi  -phi  )*0.055;
+    radius+=(tRadius-radius)*0.055;
+  }
+  lookAt.lerp(tLookAt,0.06);
+  camera.position.set(
+    lookAt.x+radius*Math.sin(phi)*Math.sin(theta),
+    lookAt.y+radius*Math.cos(phi),
+    lookAt.z+radius*Math.sin(phi)*Math.cos(theta)
+  );
+  camera.lookAt(lookAt);
+}
+
+function flyTo(pos,look,dur=750){
+  flyActive=true;
+  const sp=camera.position.clone(),sl=lookAt.clone();
+  const st=performance.now();
+  (function step(now){
+    const t=Math.min((now-st)/dur,1);
+    const e=t<0.5?2*t*t:1-(-2*t+2)**2/2;
+    camera.position.lerpVectors(sp,pos,e);
+    lookAt.lerpVectors(sl,look,e);
+    camera.lookAt(lookAt);
+    if(t<1)requestAnimationFrame(step);else flyActive=false;
+  })(performance.now());
+}
+
+function setView(v){
+  document.querySelectorAll('.vc').forEach(b=>b.classList.remove('on'));
+  const ids={orbit:'vOrbit',front:'vFront',top:'vTop',side:'vSide'};
+  if(ids[v])document.getElementById(ids[v]).classList.add('on');
+  flyActive=false;autoOrbit=false;clearIT();
+  if(v==='orbit'){autoOrbit=true;tTheta=Math.PI*0.06;tPhi=1.05;tRadius=72;tLookAt.set(0,0,0);}
+  else if(v==='front')flyTo(new THREE.Vector3(0,2,74),new THREE.Vector3(0,0,0));
+  else if(v==='top')  flyTo(new THREE.Vector3(0,78,2),new THREE.Vector3(0,0,0));
+  else if(v==='side') flyTo(new THREE.Vector3(68,2,0),new THREE.Vector3(0,0,0));
+}
+
+function clearIT(){if(idleT)clearTimeout(idleT);}
+function startIT(){clearIT();idleT=setTimeout(()=>{autoOrbit=true;},8000);}
+
+const cv=renderer.domElement;
+cv.addEventListener('mousedown',e=>{dragging=true;lx=e.clientX;ly2=e.clientY;autoOrbit=false;clearIT();});
+document.addEventListener('mousemove',e=>{
+  if(dragging&&!flyActive){
+    tTheta-=(e.clientX-lx)*0.006;
+    tPhi=Math.max(0.15,Math.min(1.48,tPhi+(e.clientY-ly2)*0.004));
+    lx=e.clientX;ly2=e.clientY;theta=tTheta;phi=tPhi;
+  }
+  doHover(e.clientX,e.clientY);
+});
+document.addEventListener('mouseup',()=>{dragging=false;startIT();});
+cv.addEventListener('wheel',e=>{tRadius=Math.max(18,Math.min(130,tRadius+e.deltaY*0.06));autoOrbit=false;startIT();},{passive:true});
+cv.addEventListener('touchstart',e=>{if(e.touches.length===1){lx=e.touches[0].clientX;ly2=e.touches[0].clientY;autoOrbit=false;}},{passive:true});
+cv.addEventListener('touchmove',e=>{if(e.touches.length===1&&!flyActive){tTheta-=(e.touches[0].clientX-lx)*0.006;tPhi=Math.max(0.15,Math.min(1.48,tPhi+(e.touches[0].clientY-ly2)*0.004));lx=e.touches[0].clientX;ly2=e.touches[0].clientY;theta=tTheta;phi=tPhi;}},{passive:true});
+cv.addEventListener('touchend',startIT);
+
+// ═══════════════════════ RAYCASTING ══════════════════════════════════
+const ray=new THREE.Raycaster();ray.params.Points.threshold=0.5;
+const mpos=new THREE.Vector2();
+let hoveredMesh=null,selectedId=null,activeFilter='all';
+
+function doHover(cx,cy){
+  const rect=mount.getBoundingClientRect();
+  mpos.x=((cx-rect.left)/rect.width)*2-1;
+  mpos.y=-((cy-rect.top)/rect.height)*2+1;
+  ray.setFromCamera(mpos,camera);
+  const hits=ray.intersectObjects(clickables);
+  const tip=document.getElementById('tip');
+  if(hits.length){
+    const m=hits[0].object;
+    if(m!==hoveredMesh){
+      if(hoveredMesh&&hoveredMesh.userData.id!==selectedId)unhover(hoveredMesh);
+      hoveredMesh=m;
+      if(m.userData.id!==selectedId)hover(m);
+    }
+    cv.style.cursor='pointer';
+    const nd=nodeData[m.userData.id];
+    document.getElementById('tn').textContent=nd.data.name;
+    document.getElementById('tt').textContent=nd.data.type||nd.data.sub||'';
+    tip.style.left=(cx+14)+'px';tip.style.top=(cy-12)+'px';tip.style.opacity='1';
+  } else {
+    if(hoveredMesh&&hoveredMesh.userData.id!==selectedId)unhover(hoveredMesh);
+    hoveredMesh=null;cv.style.cursor='default';tip.style.opacity='0';
+  }
+}
+
+function hover(m){m.material.emissiveIntensity=0.9;m.scale.setScalar(1.08);}
+function unhover(m){const nd=nodeData[m.userData.id];if(nd){m.material.emissiveIntensity=nd.origEI;}m.scale.setScalar(1);}
+
+cv.addEventListener('click',e=>{
+  const rect=mount.getBoundingClientRect();
+  mpos.x=((e.clientX-rect.left)/rect.width)*2-1;
+  mpos.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  ray.setFromCamera(mpos,camera);
+  const hits=ray.intersectObjects(clickables);
+  if(hits.length)selectNode(hits[0].object.userData.id);
+  else deselect();
+});
+
+function isDimmed(id){
+  if(activeFilter==='all'&&!selectedId)return false;
+  const nd=nodeData[id];if(!nd)return false;
+  if(nd.kind==='api'||nd.kind==='db'||nd.kind==='ai')return false;
+  if(selectedId)return id!==selectedId;
+  if(activeFilter==='outputs')return nd.kind!=='output';
+  return (nd.data.ent||'')!==activeFilter;
+}
+
+function applyDim(){
+  Object.entries(nodeData).forEach(([id,nd])=>{
+    const m=meshById[id];if(!m)return;
+    const dim=isDimmed(id),sel=id===selectedId;
+    const isCore=nd.kind==='api'||nd.kind==='db'||nd.kind==='ai';
+    if(sel){
+      m.material.emissiveIntensity=1.0;
+      m.material.transparent=false;m.material.opacity=1;
+    } else if(dim){
+      m.material.emissiveIntensity=0.02;
+      m.material.transparent=true;m.material.opacity=0.06;
+    } else {
+      m.material.emissiveIntensity=nd.origEI;
+      m.material.transparent=false;m.material.opacity=1;
+    }
+  });
+  pipes.forEach(p=>{
+    if(p.kind==='core'){p.mats.forEach(m=>m.opacity=p.baseOp);return;}
+    const dim=p.srcId?isDimmed(p.srcId):p.outId?isDimmed(p.outId):false;
+    const sel=p.srcId===selectedId||p.outId===selectedId;
+    const op=sel?0.65:dim?0.003:p.baseOp;
+    p.mats.forEach(m=>m.opacity=op);
+    if(p.arrowMesh)p.arrowMesh.material.opacity=sel?0.7:dim?0.003:0.18;
+  });
+}
+
+function selectNode(id){
+  selectedId=id;
+  applyDim();
+  // Smart fly-to: always approach from the correct side
+  const nd=nodeData[id];
+  const grp=groupById[id];
+  const isCore=nd.kind==='db'||nd.kind==='api'||nd.kind==='ai';
+  let camTarget,lookTarget;
+  if(isCore){
+    camTarget=new THREE.Vector3(CORE_X,8,32);
+    lookTarget=grp.position.clone();
+  } else if(nd.kind==='source'){
+    // Come from the left, look right toward the node and core
+    camTarget=new THREE.Vector3(SRC_X-12,grp.position.y+4,22);
+    lookTarget=new THREE.Vector3(CORE_X*0.5,grp.position.y,0);
+  } else {
+    // Come from the right
+    camTarget=new THREE.Vector3(OUT_X+12,grp.position.y+4,22);
+    lookTarget=new THREE.Vector3(CORE_X*0.5,grp.position.y,0);
+  }
+  flyTo(camTarget,lookTarget,800);
+  showPanel(id);
+}
+
+function deselect(){
+  selectedId=null;applyDim();
+  document.getElementById('panel').classList.remove('open');
+  // Ease back to orbit
+  flyActive=false;autoOrbit=false;
+  flyTo(
+    new THREE.Vector3(lookAt.x+72*Math.sin(1.08)*Math.sin(Math.PI*0.06),lookAt.y+72*Math.cos(1.08),lookAt.z+72*Math.sin(1.08)*Math.cos(Math.PI*0.06)),
+    new THREE.Vector3(0,0,0),600
+  );
+  setTimeout(()=>{autoOrbit=true;theta=Math.PI*0.06;tTheta=theta;phi=1.05;tPhi=phi;radius=72;tRadius=radius;tLookAt.set(0,0,0);},620);
+}
+
+// ═══════════════════════ EXPLODE ════════════════════════════════════
+let exploded=false,explodeT=0;
+
+function toggleExplode(){
+  exploded=!exploded;
+  document.getElementById('vExp').classList.toggle('on',exploded);
+  applyExplodeDim();
+}
+
+function applyExplodeDim(){
+  if(selectedId) return; // don't fight with node selection
+  Object.entries(nodeData).forEach(([id,nd])=>{
+    const m=meshById[id];if(!m)return;
+    const isCore=nd.kind==='api'||nd.kind==='db'||nd.kind==='ai';
+    if(exploded){
+      if(isCore){
+        m.material.emissiveIntensity=1.2;
+        m.material.transparent=false;m.material.opacity=1;
+      } else {
+        m.material.emissiveIntensity=0.04;
+        m.material.transparent=true;m.material.opacity=0.15;
+      }
+    } else {
+      m.material.emissiveIntensity=nd.origEI;
+      m.material.transparent=false;m.material.opacity=1;
+    }
+  });
+  // Dim all connector pipes when exploded
+  pipes.forEach(p=>{
+    if(exploded){
+      const op=p.kind==='core'?p.baseOp*2.5:0.01;
+      p.mats.forEach(m=>m.opacity=op);
+      if(p.arrowMesh)p.arrowMesh.material.opacity=p.kind==='core'?0.5:0.01;
+    } else {
+      p.mats.forEach(m=>m.opacity=p.baseOp);
+      if(p.arrowMesh)p.arrowMesh.material.opacity=0.18;
+    }
+  });
+  // Boost core node halo rings
+  ['db','api','ai'].forEach(cid=>{
+    const grp=groupById[cid];if(!grp)return;
+    grp.children.forEach(child=>{
+      if(child.isMesh&&child.geometry.type==='RingGeometry'){
+        child.material.opacity=exploded?0.55:0.15;
+      }
+    });
+  });
+}
+
+function applyExplode(t){
+  const TARGET_SRC_X=SRC_X-18, TARGET_OUT_X=OUT_X+18;
+  SOURCES.forEach(s=>{
+    const bp=basePosById[s.id];if(!bp)return;
+    const grp=groupById[s.id];if(!grp)return;
+    grp.position.x=bp.x+(TARGET_SRC_X-bp.x)*t;
+    grp.position.z=bp.z+(bp.z*1.5-bp.z)*t+bp.z;
+  });
+  OUTPUTS.forEach(o=>{
+    const bp=basePosById[o.id];if(!bp)return;
+    const grp=groupById[o.id];if(!grp)return;
+    grp.position.x=bp.x+(TARGET_OUT_X-bp.x)*t;
+  });
+}
+
+// ═══════════════════════ PANEL ════════════════════════════════════════
+function showPanel(id){
+  const nd=nodeData[id];if(!nd)return;
+  const{data,kind}=nd;
+  const lc=KIND_COL[kind]||data.hex;
+  document.getElementById('pBar').style.background=`linear-gradient(90deg,${lc},transparent)`;
+  const layer=document.getElementById('pLayer');
+  layer.style.background=lc+'1a';layer.style.color=lc;layer.textContent=KIND_LABEL[kind]||kind;
+  document.getElementById('pName').textContent=data.name;
+  document.getElementById('pType').textContent=data.type||data.sub||'';
+  document.getElementById('pDesc').textContent=data.desc||'';
+  const chips=document.getElementById('pChips');chips.innerHTML='';
+  if(data.sync){const c=document.createElement('span');c.className='pchip';c.style.background=(SYNC_COL[data.sync]||'#334155')+'20';c.style.color=SYNC_COL[data.sync]||'#334155';c.textContent=SYNC_LBL[data.sync]||data.sync.toUpperCase();chips.appendChild(c);}
+  if(data.ent&&data.ent!=='Output'){const c=document.createElement('span');c.className='pchip';c.style.background=lc+'18';c.style.color=lc;c.textContent=data.ent;chips.appendChild(c);}
+  if(data.uc){const c=document.createElement('span');c.className='pchip';c.style.background='#0a1422';c.style.color='#334155';c.textContent=data.uc.length+' USE CASES';chips.appendChild(c);}
+  const body=document.getElementById('pBody');
+  if(data.uc&&data.uc.length){
+    body.innerHTML=`<div class="pn-sec" style="margin-bottom:8px">USE CASES</div>${
+      data.uc.map(u=>`<div class="uc-card" style="--a:${lc}" onclick='showUCD(${JSON.stringify(JSON.stringify(u))},${JSON.stringify(lc)})'>
+        <div class="uc-title">${u.t}</div><div class="uc-aud">${u.a}</div>
+        <div class="uc-imp"><b>→</b> ${u.imp}</div></div>`).join('')}`;
+  } else {
+    body.innerHTML=`<p style="font-size:11px;color:#334155;line-height:1.6">${data.desc||''}</p>`;
+  }
+  document.getElementById('panel').classList.add('open');
+}
+
+function showUCD(ucStr,col){
+  const uc=JSON.parse(ucStr);
+  document.getElementById('ucdBox').innerHTML=`
+    <button class="ucd-close" onclick="closeUCD()">✕</button>
+    <div class="ucd-tag" style="background:${col}1a;color:${col}">USE CASE</div>
+    <div class="ucd-title">${uc.t}</div><div class="ucd-aud">${uc.a}</div>
+    <div class="ucd-desc">${uc.d}</div>
+    <div class="ucd-lbl">AI Layer</div><div class="ucd-ai">${uc.ai}</div>
+    <div class="ucd-lbl" style="margin-top:12px">Business Impact</div>
+    <div class="ucd-impact">${uc.imp}</div>`;
+  document.getElementById('ucd').classList.add('show');
+}
+function closeUCD(){document.getElementById('ucd').classList.remove('show');}
+
+// ═══════════════════════ SEARCH ══════════════════════════════════════
+const si=document.getElementById('si'),sdrop=document.getElementById('sdrop');
+si.addEventListener('input',()=>{
+  const q=si.value.trim().toLowerCase();
+  if(q.length<2){sdrop.classList.remove('open');return;}
+  const nH=ALL.filter(n=>n.name.toLowerCase().includes(q)||(n.type||'').toLowerCase().includes(q));
+  const uH=ALL_UCS.filter(u=>u.t.toLowerCase().includes(q)||u.imp.toLowerCase().includes(q));
+  const res=[...nH.slice(0,3).map(n=>({kind:'node',n,label:n.name,sub:n.type,hex:n.hex})),...uH.slice(0,4).map(u=>({kind:'uc',u,n:u.srcNode,label:u.t,sub:u.srcNode.name,hex:u.srcNode.hex}))].slice(0,6);
+  if(!res.length){sdrop.classList.remove('open');return;}
+  sdrop.innerHTML=res.map((r,i)=>`<div class="sdi" onclick="pickSearch(${i})"><div class="sdi-dot" style="background:${r.hex}"></div><div><div class="sdi-name">${r.label}</div><div class="sdi-sub">${r.sub}</div></div><span class="sdi-badge" style="background:${r.hex}18;color:${r.hex}">${r.kind==='node'?'SYSTEM':'USE CASE'}</span></div>`).join('');
+  sdrop._r=res;sdrop.classList.add('open');
+});
+function pickSearch(i){
+  const r=sdrop._r[i];if(!r)return;
+  selectNode(r.n.id);
+  if(r.kind==='uc')setTimeout(()=>showUCD(JSON.stringify(r.u),r.hex),400);
+  sdrop.classList.remove('open');si.value='';
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.srch'))sdrop.classList.remove('open');});
+si.addEventListener('keydown',e=>{if(e.key==='Escape'){sdrop.classList.remove('open');deselect();}if(e.key==='Enter'){const f=sdrop.querySelector('.sdi');if(f)f.click();}});
+
+// ═══════════════════════ FILTER ══════════════════════════════════════
+function setFilter(f,el){
+  activeFilter=f;selectedId=null;
+  document.querySelectorAll('.fb').forEach(b=>b.classList.remove('on'));el.classList.add('on');
+  applyDim();document.getElementById('panel').classList.remove('open');
+}
+
+// ═══════════════════════ ANIMATION LOOP ══════════════════════════════
+let clock=0;
+function animate(){
+  requestAnimationFrame(animate);
+  clock+=0.012;
+
+  if(autoOrbit&&!dragging&&!flyActive)tTheta+=0.0007;
+  camTick();
+
+  // Explode animation
+  const et=exploded?1:0;
+  explodeT+=(et-explodeT)*0.04;
+  if(Math.abs(explodeT-et)>0.002)applyExplode(explodeT);
+
+  // Pulse particles (single Points object)
+  // Pulse particles — travel along curves, fade in/out via size
+  pulseDefs.forEach(p=>{
+    p.t=(p.t+p.s)%1;
+    try{
+      const pos=p.curve.getPoint(p.t);
+      pPos[p.idx*3]=pos.x;pPos[p.idx*3+1]=pos.y;pPos[p.idx*3+2]=pos.z;
+    }catch(e){}
+  });
+  pGeo.attributes.position.needsUpdate=true;
+  // Pulse opacity: bright constant — individual fade handled by sine on material
+  pMat.opacity=0.9+Math.sin(clock*2)*0.08;
+
+  // Ambient particle drift
+  for(let i=0;i<AP;i++){
+    apPos[i*3+1]+=0.005;
+    if(apPos[i*3+1]>20)apPos[i*3+1]=-8;
+  }
+  apGeo.attributes.position.needsUpdate=true;
+
+  // Live ring pulse for realtime nodes
+  Object.values(groupById).forEach(grp=>{
+    if(grp._liveRingMat){
+      grp._liveRingMat.opacity=0.3+Math.sin(clock*3+grp.position.y)*0.25;
+    }
+    // DB halo slow rotation
+    if(grp._ring1){grp._ring1.rotation.z=clock*0.15;}
+    if(grp._ring2){grp._ring2.rotation.z=-clock*0.08;}
+  });
+
+  // Core node glow — extra intense when exploded
+  ['db','api','ai'].forEach(cid=>{
+    const m=meshById[cid];if(!m)return;
+    if(explodeT>0.05&&!selectedId){
+      m.material.emissiveIntensity=1.0+Math.sin(clock*2.5)*0.3*explodeT;
+    }
+  });
+
+  // Selected node glow pulse
+  if(selectedId&&meshById[selectedId]){
+    meshById[selectedId].material.emissiveIntensity=0.85+Math.sin(clock*3.5)*0.18;
+  }
+
+  // Light breathing
+  lA.intensity=20+Math.sin(clock*0.65)*5;
+  lB.intensity=12+Math.sin(clock*1.1)*3;
+
+  renderer.render(scene,camera);
+  updateBeamBillboards();
+  updateLabels();
+}
+
+// ═══════════════════════ RESIZE ══════════════════════════════════════
+window.addEventListener('resize',()=>{
+  renderer.setSize(W(),H());
+  camera.aspect=W()/H();camera.updateProjectionMatrix();
+});
+
+// ═══════════════════════ LOADER ══════════════════════════════════════
+const LMSGS=['LOADING 11 SOURCE CONNECTORS...','BUILDING TUBE PIPES...','PLACING FLOW ARROWS...','INDEXING 40+ USE CASES...','READY'];
+let ls=0;
+function loaderTick(){
+  if(ls>=LMSGS.length)return;
+  document.getElementById('lm').textContent=LMSGS[ls];
+  document.getElementById('lf').style.width=((ls+1)/LMSGS.length*100)+'%';
+  ls++;
+  if(ls<LMSGS.length)setTimeout(loaderTick,ls===LMSGS.length-1?80:260);
+  else setTimeout(()=>{const l=document.getElementById('loader');l.classList.add('out');setTimeout(()=>l.style.display='none',700);},80);
+}
+setTimeout(loaderTick,300);
+applyDim();
+animate();
+</script>
+</body>
+</html>
