@@ -822,19 +822,15 @@ function selectNode(id) {
   applyDim();
   const nd  = nodeData[id];
   const grp = groupById[id];
-  const isCore = nd.kind === 'db' || nd.kind === 'api' || nd.kind === 'ai';
-  let camTarget, lookTarget;
-  if (isCore) {
-    camTarget  = new THREE.Vector3(coreX, 8, 32);
-    lookTarget = grp.position.clone();
-  } else if (nd.kind === 'source') {
-    camTarget  = new THREE.Vector3(srcX - 12, grp.position.y + 4, 22);
-    lookTarget = new THREE.Vector3(coreX * 0.5, grp.position.y, 0);
-  } else {
-    camTarget  = new THREE.Vector3(outX + 12, grp.position.y + 4, 22);
-    lookTarget = new THREE.Vector3(coreX * 0.5, grp.position.y, 0);
-  }
-  flyTo(camTarget, lookTarget, 800);
+
+  // Approach the clicked ball from the current camera angle so it fills center-frame
+  const nodePos   = grp.position.clone();
+  const dir       = camera.position.clone().sub(nodePos).normalize();
+  const closeR    = nd.radius * 5 + 10;   // scale with ball size: big balls → further back
+  const camTarget  = nodePos.clone().addScaledVector(dir, closeR);
+  const lookTarget = nodePos.clone();
+
+  flyTo(camTarget, lookTarget, 900);
   showPanel(id);
 }
 
