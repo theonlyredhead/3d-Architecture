@@ -448,6 +448,103 @@ html, body {
   100% { box-shadow: -6px 0 32px rgba(59, 130, 246, 0.09); }
 }
 
+/* ── Core node panel — rich architecture layout ──────────── */
+
+/* Capability cards */
+.cap-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 5px;
+  transition: border-color 0.15s;
+}
+.cap-card:hover { border-color: #1e3044; }
+.cap-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+}
+.cap-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cap-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  line-height: 1.2;
+}
+.cap-badge {
+  font-family: var(--font-mono);
+  font-size: 6px;
+  letter-spacing: 0.1em;
+  padding: 2px 5px;
+  border-radius: 3px;
+  border: 1px solid;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.cap-body {
+  font-size: 10px;
+  color: var(--text-subtle);
+  line-height: 1.7;
+}
+
+/* Architecture decisions table */
+.arch-table {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.arch-row {
+  display: flex;
+  align-items: baseline;
+  padding: 7px 11px;
+  border-bottom: 1px solid #0c1626;
+  gap: 10px;
+}
+.arch-row:last-child { border-bottom: none; }
+.arch-k {
+  font-family: var(--font-mono);
+  font-size: 7px;
+  color: var(--text-subtle);
+  letter-spacing: 0.08em;
+  width: 88px;
+  flex-shrink: 0;
+}
+.arch-v {
+  font-size: 10px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/* Schema domain tags (DB node) */
+.domain-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.domain-chip {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border: 1px solid;
+  border-radius: 4px;
+  background: transparent;
+  transition: background 0.12s;
+}
+.domain-chip:hover { background: rgba(255,255,255,0.03); }
+
+/* Wider panel: applied inline via JS for core nodes.
+   Ensure the transform-out still works at the wider width. */
+#panel { transition: transform 0.32s cubic-bezier(.16,1,.3,1), width 0.25s ease; }
+
 /* ── Loader: typewriter-style messages ───────────────────── */
 .l-msg {
   letter-spacing: 0.18em;
