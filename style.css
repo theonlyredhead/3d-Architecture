@@ -333,3 +333,128 @@ html, body {
   border-radius: 3px; padding: 1px 4px;
 }
 .kh span { font-family: var(--font-mono); font-size: 7px; color: var(--text-muted); }
+
+/* ══════════════════════════════════════════════════════════
+   JARVIS holographic enhancements (jarvis.js companion CSS)
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Canvas: subtle saturation + brightness boost ────────── */
+#three-mount canvas {
+  filter: saturate(1.2) brightness(1.06);
+}
+
+/* ── Scanlines overlay on 3D canvas ─────────────────────── */
+#three-mount::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(0, 0, 0, 0.045) 3px,
+    rgba(0, 0, 0, 0.045) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Radial vignette (holographic display edge-fade) ─────── */
+#three-mount::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(
+    ellipse 92% 92% at center,
+    transparent 42%,
+    rgba(0, 0, 0, 0.52) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Logo: electric glow ─────────────────────────────────── */
+.tb-logo {
+  text-shadow:
+    0 0 14px rgba(59, 130, 246, 0.7),
+    0 0 36px rgba(59, 130, 246, 0.35);
+}
+
+/* ── Node name labels: slightly stronger glow ────────────── */
+.nl-name {
+  text-shadow:
+    0 1px 10px #000,
+    0 0 24px #000,
+    0 0 10px rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── Panel: holographic left-edge glow ───────────────────── */
+#panel {
+  box-shadow: -6px 0 32px rgba(59, 130, 246, 0.09);
+}
+
+/* ── Top bar: faint blue bottom edge ─────────────────────── */
+#topbar {
+  box-shadow: 0 1px 0 rgba(59, 130, 246, 0.18);
+}
+
+/* ── Filter bar: faint blue bottom edge ──────────────────── */
+#filterbar {
+  box-shadow: 0 1px 0 rgba(59, 130, 246, 0.1);
+}
+
+/* ── Active filter pill: electric glow ───────────────────── */
+.fb.on {
+  box-shadow: 0 0 8px var(--fc)40;
+}
+
+/* ── Legend keys: subtle glow ────────────────────────────── */
+#key, #skey, #kbd-hint {
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.07);
+}
+
+/* ── Tooltip: faint glow border ──────────────────────────── */
+#tip {
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.12);
+}
+
+/* ── UCD modal: holographic glow ─────────────────────────── */
+.ucd-box {
+  box-shadow: 0 0 48px rgba(59, 130, 246, 0.12), 0 0 96px rgba(59, 130, 246, 0.06);
+}
+
+/* ── JARVIS status bar (injected by jarvis.js) ───────────── */
+#jarvis-status {
+  /* base styles set inline; just add a subtle left-border accent */
+  border-left: 1px solid rgba(59, 130, 246, 0.2);
+  padding-left: 8px;
+}
+
+/* ── HUD canvas: always on top of label layer but below panel */
+#jarvis-hud {
+  mix-blend-mode: screen;  /* additive blend for holographic feel */
+}
+
+/* ── Use-case cards: stronger left-border glow on hover ───── */
+.uc-card:hover {
+  box-shadow: inset 3px 0 12px var(--a)18;
+}
+
+/* ── Panel open animation: slide in with a flash ─────────── */
+#panel.open {
+  animation: panelFlash 0.4s ease-out;
+}
+@keyframes panelFlash {
+  0%   { box-shadow: -6px 0 32px rgba(59, 130, 246, 0.09), inset -1px 0 0 rgba(59, 130, 246, 0.6); }
+  40%  { box-shadow: -6px 0 32px rgba(59, 130, 246, 0.09), inset -1px 0 0 rgba(59, 130, 246, 0.1); }
+  100% { box-shadow: -6px 0 32px rgba(59, 130, 246, 0.09); }
+}
+
+/* ── Loader: typewriter-style messages ───────────────────── */
+.l-msg {
+  letter-spacing: 0.18em;
+  text-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+}
+.l-logo {
+  text-shadow:
+    0 0 20px rgba(59, 130, 246, 0.6),
+    0 0 50px rgba(59, 130, 246, 0.3);
+}

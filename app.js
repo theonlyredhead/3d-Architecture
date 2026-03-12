@@ -87,6 +87,9 @@ renderer.toneMappingExposure = 1.15;
 renderer.shadowMap.enabled   = true;
 mount.appendChild(renderer.domElement);
 
+// jarvis.js can replace this to plug in post-processing (e.g. UnrealBloom)
+let renderFn = () => renderer.render(scene, camera);
+
 const scene  = new THREE.Scene();
 scene.fog    = new THREE.FogExp2(0x060a12, 0.006);
 
@@ -999,7 +1002,7 @@ function animate() {
   lA.intensity = 20 + Math.sin(t * 0.65) * 5;
   lB.intensity = 12 + Math.sin(t * 1.1)  * 3;
 
-  renderer.render(scene, camera);
+  renderFn();
   updateBeamBillboards();
   updateLabels();
 }
