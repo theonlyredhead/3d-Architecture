@@ -87,6 +87,9 @@ renderer.toneMappingExposure = 1.15;
 renderer.shadowMap.enabled   = true;
 mount.appendChild(renderer.domElement);
 
+// jarvis.js can replace this to plug in post-processing (e.g. UnrealBloom)
+let renderFn = () => renderer.render(scene, camera);
+
 const scene  = new THREE.Scene();
 scene.fog    = new THREE.FogExp2(0x060a12, 0.006);
 
@@ -209,9 +212,99 @@ OUTPUTS.forEach((o, i) => {
   makeNode(o.id, outX, outY(i), 0, r, o.hex, o, 'output');
 });
 
-makeNode('db',  coreX, 0,    0, 3.4, '#10B981', { id: 'db',  name: 'Central DB',  sub: 'Azure SQL + pgvector',  hex: '#10B981', desc: 'DB-first architecture. Single source of truth. Full audit trail, row-level security, 90-day history, and pgvector embeddings for AI search. Every connector writes here, nothing bypasses it.' }, 'db');
-makeNode('api', coreX, 5.8,  0, 2.5, '#3B82F6', { id: 'api', name: 'COCO API',    sub: 'REST / GraphQL',        hex: '#3B82F6', desc: 'Single API layer. All connectors authenticate here. Handles transformation, rate limiting, schema validation, versioning, and routing between all source and output connectors.' }, 'api');
-makeNode('ai',  coreX, -5.8, 0, 2.1, '#FB923C', { id: 'ai',  name: 'AI Engine',   sub: 'Bedrock + Claude 3.5',  hex: '#FB923C', desc: 'AWS Bedrock running Claude 3.5 Sonnet in ap-southeast-2. Reads from DB via API. Powers natural language generation, RAG retrieval, anomaly detection, and scheduled briefings. All data stays in-region.' }, 'ai');
+// ── Core node architecture data ───────────────────────────
+// Rich structured data for the three platform nodes.
+// Edit here to update the architecture detail panel.
+const CORE_NODES = {
+  db: {
+    id: 'db', name: 'Central DB', sub: 'Azure SQL · pgvector · EF Core 8', hex: '#10B981',
+    desc: 'DB-first architecture. Every connector writes here — nothing reads from source systems directly. One schema, one version of the truth. This is what makes every other part of the platform possible.',
+    stack: ['Azure SQL Premium', 'pgvector 0.5', 'Row-Level Security', 'EF Core 8', 'BACPAC Backups', 'Private Link'],
+    domains: ['[fin]', '[dev]', '[con]', '[btr]', '[hr]', '[audit]', '[vec]'],
+    capabilities: [
+      { title: 'Single Source of Truth', status: 'live',
+        body: 'All 11 source connectors write here via API. Nothing reads directly from HubSpot, Acumatica, or any other system. One schema owns every number in the business — Power BI, AI, and reports all read the same rows.' },
+      { title: 'Row-Level Security', status: 'live',
+        body: 'Every row is tagged with entity (Development / Construction / BTR / Enterprise). DB enforces access at the row level — Power BI, AI Assistant, and API all see only what their credentials allow. Not enforced in app code, enforced in the database.' },
+      { title: 'Full Audit Trail', status: 'live',
+        body: '90-day history on every table via temporal tables. Every INSERT, UPDATE, DELETE stamped with connector ID, user, and UTC timestamp. GDPR and Privacy Act 1988 compliant. Immutable — no connector can delete audit rows.' },
+      { title: 'pgvector Embeddings', status: 'building',
+        body: 'All text fields — project notes, feasibility narratives, policy docs, use-case descriptions — embedded via Amazon Titan Embed v2 (1536-dim) and stored in the [vec] schema. Enables the AI Assistant to do semantic search across the entire company knowledge base.' },
+      { title: 'Schema-Per-Domain', status: 'live',
+        body: 'Separate schemas prevent accidental cross-domain joins: [fin], [dev], [con], [btr], [hr], [audit], [vec]. Migrations versioned in Entity Framework Core — no manual scripts, no undocumented schema changes. CI gate enforces migration-first.' },
+      { title: 'Point-in-Time Recovery', status: 'live',
+        body: 'BACPAC exported nightly to geo-redundant Azure Blob (LRS + ZRS). Any 5-minute window in the last 7 days restorable in under 20 minutes. RPO: 5 min. RTO: 20 min. Tested quarterly.' },
+    ],
+    arch: [
+      { k: 'Region',    v: 'ap-southeast-2 (Sydney) — data sovereignty' },
+      { k: 'Tier',      v: 'Business Critical S3 — 4 vCores, 20.4 GB RAM' },
+      { k: 'SLA',       v: '99.995% uptime (~26 min/year max downtime)' },
+      { k: 'Access',    v: 'Azure Private Link — not exposed to public internet' },
+      { k: 'Scaling',   v: 'Auto-scale read replicas for BI workloads' },
+      { k: 'ORM',       v: 'Entity Framework Core 8 — schema in code, not scripts' },
+    ],
+  },
+  api: {
+    id: 'api', name: 'COCO API', sub: 'ASP.NET Core 8 · REST + GraphQL · Azure APIM', hex: '#3B82F6',
+    desc: 'The single contract between all connectors and the database. No system talks to another directly — every read and write passes through here. Validation, normalisation, auth, and routing all happen in one place.',
+    stack: ['ASP.NET Core 8', 'Azure APIM', 'Hot Chocolate GraphQL', 'JWT + HMAC Auth', 'Azure Service Bus', 'Azure Redis Cache'],
+    capabilities: [
+      { title: 'Connector Authentication', status: 'live',
+        body: 'Each connector gets a rotating API key scoped to its entity and schema domains. Keys rotate every 90 days via Azure Key Vault. A HubSpot key cannot read or write to the [fin] schema. Scope enforced at the API layer before any DB query runs.' },
+      { title: 'Schema Validation', status: 'live',
+        body: 'Every inbound payload validated against a connector-specific JSON Schema before the DB sees it. Invalid records are quarantined to a dead-letter table and an alert fires to ops within 60 seconds. Nothing corrupt reaches the write path.' },
+      { title: 'Transformation & Normalisation', status: 'live',
+        body: 'HubSpot "Amount", Acumatica "TotalAmt", and Jobpac "ContractValue" all land as amount_aud in fin.transactions. Currency conversion, date normalisation (UTC), and entity code mapping all happen here — not in source systems, not in Power BI.' },
+      { title: 'Rate Limiting & Throttle', status: 'live',
+        body: 'Source connectors: 1,000 req/min. Output connectors: 500 req/min. 2× burst for 30 seconds. Returns 429 with Retry-After header. Prevents any single connector from starving others under load. Per-key counters in Redis.' },
+      { title: 'GraphQL Query Layer', status: 'live',
+        body: 'Power BI, AI Assistant, and Auto-Reports all query via GraphQL (Hot Chocolate). Resolvers enforce row-level security. Persisted queries only in production — no ad-hoc introspection. Response caching per-query in Azure Redis.' },
+      { title: 'Webhook & Event Fanout', status: 'building',
+        body: 'Realtime connectors (ConnecX, BLogix) POST events to API. API publishes to Azure Service Bus topics. Current subscribers: AI anomaly detection, live dashboard invalidation. Guaranteed delivery — at-least-once semantics, dead-letter queue monitored.' },
+      { title: 'API Versioning', status: 'live',
+        body: 'URL-versioned: /v1/, /v2/. Connector adapters version-pinned in their config. Breaking changes deployed to /v2/ while /v1/ stays live for a 90-day migration window. Deprecation notices returned as response headers on every /v1/ call.' },
+    ],
+    arch: [
+      { k: 'Host',        v: 'Azure Container Apps — autoscale 1–20 instances' },
+      { k: 'Auth',        v: 'JWT RS256 internal · HMAC-SHA256 webhooks' },
+      { k: 'Observability', v: 'Azure Monitor + App Insights + OpenTelemetry' },
+      { k: 'Cache',       v: 'Azure Redis — metadata + persisted query responses' },
+      { k: 'Queue',       v: 'Azure Service Bus — realtime event fanout' },
+      { k: 'Latency',     v: 'p50 <40ms · p99 <200ms (excluding DB round-trip)' },
+    ],
+  },
+  ai: {
+    id: 'ai', name: 'AI Engine', sub: 'Claude 3.5 Sonnet · AWS Bedrock · LangChain', hex: '#FB923C',
+    desc: 'Reads from the DB via API. Generates language, retrieves context, detects anomalies, and schedules briefings. All inference runs in ap-southeast-2 — company data never leaves Australia.',
+    stack: ['Claude 3.5 Sonnet', 'AWS Bedrock', 'Amazon Titan Embed v2', 'LangChain v0.3', 'Azure Functions', 'pgvector (retrieval)'],
+    capabilities: [
+      { title: 'Natural Language Q&A', status: 'live',
+        body: 'Claude reads live DB snapshots (refreshed hourly) to answer plain-English queries across all 11 connectors. "What\'s the margin on Stage 2 vs the original feasibility?" Returns answer with source table, column, and data timestamp cited. No hallucination risk — all answers grounded in DB rows.' },
+      { title: 'RAG Retrieval Pipeline', status: 'building',
+        body: 'Policy docs, contracts, and feasibility models chunked at 512 tokens with 10% overlap. Embedded via Amazon Titan v2 (1536-dim). Top-5 semantic matches retrieved via pgvector cosine similarity. Chunks injected into Claude context with source citations. Used by AI Assistant and compliance Q&A.' },
+      { title: 'Anomaly Detection', status: 'building',
+        body: 'Nightly job compares 35 key metrics (budget variance, days-on-market, arrears %, NOI delta) against a 90-day rolling baseline per metric. Outliers beyond 2σ trigger a Claude-generated alert: plain-English diagnosis, trend chart data, and a suggested action — delivered before leadership arrives in the morning.' },
+      { title: 'Monday Executive Briefing', status: 'live',
+        body: 'Every Monday 07:00 AEST: Claude reads 7-day deltas across all domain schemas, identifies the 5 most material movements by magnitude and business impact, and generates a structured executive narrative in Markdown. Delivered via Auto-Reports connector to email + Teams.' },
+      { title: 'Board Pack Generation', status: 'live',
+        body: 'Monthly: Claude drafts each section (Financials, Projects, Sales, BTR, Risk, People) by querying domain schemas via the GraphQL API. Draft returned as structured Markdown with source citations. Human review gate before delivery. Board pack prep reduced from 3 days to under 2 hours.' },
+      { title: 'Prompt Governance', status: 'live',
+        body: 'All prompts versioned in a prompt_registry table in the DB. Production prompts require an approval record before deployment. All prompt I/O logged to [audit] schema with token counts. User queries parameterised and sanitised at API layer — no prompt injection surface exposed.' },
+    ],
+    arch: [
+      { k: 'Model',       v: 'claude-3-5-sonnet-20241022 · 200K context' },
+      { k: 'Inference',   v: 'AWS Bedrock ap-southeast-2 — data stays in AU' },
+      { k: 'Embeddings',  v: 'Amazon Titan Embed Text v2 · 1536 dimensions' },
+      { k: 'Orchestration', v: 'LangChain v0.3 (Python) · Azure Functions Consumption' },
+      { k: 'Token budget', v: 'Per-query limit enforced by API — cost controlled' },
+      { k: 'Latency',     v: 'Q&A p50 ~3s · Briefings async, scheduled nightly' },
+    ],
+  },
+};
+
+makeNode('db',  coreX, 0,    0, 3.4, '#10B981', CORE_NODES.db,  'db');
+makeNode('api', coreX, 5.8,  0, 2.5, '#3B82F6', CORE_NODES.api, 'api');
+makeNode('ai',  coreX, -5.8, 0, 2.1, '#FB923C', CORE_NODES.ai,  'ai');
 
 // Cache entry arrays once — used every animation frame
 _groupEntries = Object.entries(groupById);
@@ -804,7 +897,12 @@ let _ucCache = []; // holds the current node's use cases for showUCD()
 function showPanel(id) {
   const nd = nodeData[id]; if (!nd) return;
   const { data, kind } = nd;
-  const lc = KIND_COL[kind] || data.hex;
+  const lc     = KIND_COL[kind] || data.hex;
+  const isCore = kind === 'db' || kind === 'api' || kind === 'ai';
+  const panel  = document.getElementById('panel');
+
+  // Wider panel for core nodes — more content to show
+  panel.style.width = isCore ? '400px' : '320px';
 
   document.getElementById('pBar').style.background = `linear-gradient(90deg,${lc},transparent)`;
   const layer = document.getElementById('pLayer');
@@ -818,33 +916,49 @@ function showPanel(id) {
 
   const chips = document.getElementById('pChips');
   chips.innerHTML = '';
-  if (data.sync) {
-    const c = document.createElement('span');
-    c.className        = 'pchip';
-    c.style.background = (SYNC_COL[data.sync] || '#334155') + '20';
-    c.style.color      = SYNC_COL[data.sync] || '#334155';
-    c.textContent      = SYNC_LBL[data.sync] || data.sync.toUpperCase();
-    chips.appendChild(c);
-  }
-  if (data.ent && data.ent !== 'Output') {
-    const c = document.createElement('span');
-    c.className        = 'pchip';
-    c.style.background = lc + '18';
-    c.style.color      = lc;
-    c.textContent      = data.ent;
-    chips.appendChild(c);
-  }
-  if (data.uc) {
-    const c = document.createElement('span');
-    c.className        = 'pchip';
-    c.style.background = '#0a1422';
-    c.style.color      = '#334155';
-    c.textContent      = data.uc.length + ' USE CASES';
-    chips.appendChild(c);
+
+  if (isCore && data.stack) {
+    // Tech stack chips for core nodes
+    data.stack.forEach(s => {
+      const c = document.createElement('span');
+      c.className        = 'pchip';
+      c.style.background = lc + '10';
+      c.style.color      = lc;
+      c.style.border     = `1px solid ${lc}28`;
+      c.textContent      = s;
+      chips.appendChild(c);
+    });
+  } else {
+    if (data.sync) {
+      const c = document.createElement('span');
+      c.className        = 'pchip';
+      c.style.background = (SYNC_COL[data.sync] || '#334155') + '20';
+      c.style.color      = SYNC_COL[data.sync] || '#334155';
+      c.textContent      = SYNC_LBL[data.sync] || data.sync.toUpperCase();
+      chips.appendChild(c);
+    }
+    if (data.ent && data.ent !== 'Output') {
+      const c = document.createElement('span');
+      c.className        = 'pchip';
+      c.style.background = lc + '18';
+      c.style.color      = lc;
+      c.textContent      = data.ent;
+      chips.appendChild(c);
+    }
+    if (data.uc) {
+      const c = document.createElement('span');
+      c.className        = 'pchip';
+      c.style.background = '#0a1422';
+      c.style.color      = '#334155';
+      c.textContent      = data.uc.length + ' USE CASES';
+      chips.appendChild(c);
+    }
   }
 
   const body = document.getElementById('pBody');
-  if (data.uc && data.uc.length) {
+  if (isCore && data.capabilities) {
+    body.innerHTML = _renderCoreBody(data, lc);
+  } else if (data.uc && data.uc.length) {
     _ucCache = data.uc;
     body.innerHTML = `<div class="pn-sec" style="margin-bottom:8px">USE CASES</div>` +
       data.uc.map((u, i) =>
@@ -857,7 +971,55 @@ function showPanel(id) {
   } else {
     body.innerHTML = `<p style="font-size:11px;color:#334155;line-height:1.6">${data.desc || ''}</p>`;
   }
-  document.getElementById('panel').classList.add('open');
+  panel.classList.add('open');
+}
+
+// Renders the rich architecture detail body for DB / API / AI nodes
+function _renderCoreBody(data, lc) {
+  const STATUS_COL = { live: '#34D399', building: '#FBBF24', planned: '#475569' };
+  const STATUS_LBL = { live: 'LIVE',   building: 'BUILDING', planned: 'PLANNED' };
+  let html = '';
+
+  // Capabilities list
+  if (data.capabilities) {
+    html += `<div class="pn-sec" style="margin-bottom:8px">CAPABILITIES</div>`;
+    html += data.capabilities.map(cap => {
+      const sc = STATUS_COL[cap.status] || '#475569';
+      const sl = STATUS_LBL[cap.status] || (cap.status || '').toUpperCase();
+      return `<div class="cap-card">
+        <div class="cap-head">
+          <span class="cap-dot" style="background:${sc};box-shadow:0 0 5px ${sc}80"></span>
+          <span class="cap-title">${cap.title}</span>
+          <span class="cap-badge" style="color:${sc};border-color:${sc}30;background:${sc}0c">${sl}</span>
+        </div>
+        <div class="cap-body">${cap.body}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Architecture decisions table
+  if (data.arch) {
+    html += `<div class="pn-sec" style="margin-top:16px;margin-bottom:8px">ARCHITECTURE</div>`;
+    html += `<div class="arch-table">` +
+      data.arch.map(row => `
+        <div class="arch-row">
+          <span class="arch-k">${row.k}</span>
+          <span class="arch-v">${row.v}</span>
+        </div>`).join('') +
+      `</div>`;
+  }
+
+  // Schema domain tags (DB only)
+  if (data.domains) {
+    html += `<div class="pn-sec" style="margin-top:16px;margin-bottom:8px">SCHEMA DOMAINS</div>`;
+    html += `<div class="domain-row">` +
+      data.domains.map(d =>
+        `<span class="domain-chip" style="color:${lc};border-color:${lc}35">${d}</span>`
+      ).join('') +
+      `</div>`;
+  }
+
+  return html;
 }
 
 function showUCD(idx, col) {
@@ -999,7 +1161,7 @@ function animate() {
   lA.intensity = 20 + Math.sin(t * 0.65) * 5;
   lB.intensity = 12 + Math.sin(t * 1.1)  * 3;
 
-  renderer.render(scene, camera);
+  renderFn();
   updateBeamBillboards();
   updateLabels();
 }
