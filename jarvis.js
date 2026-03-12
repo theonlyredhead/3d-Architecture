@@ -110,12 +110,12 @@ const SFX = {
   panel()    { _sweep(160, 1100, 0.2, 'sine', 0.05); },
   ucdOpen()  { _tone(900, 0.06, 'sine', 0.04); _tone(1400, 0.12, 'sine', 0.035, 0.07); },
   startup()  {
-    // Dramatic JARVIS power-on chime
+    // Snappy JARVIS power-on chime (~1.4 s total)
     [220, 311, 440, 554, 740, 880, 1175, 1760].forEach((f, i) => {
-      _tone(f, 0.25, 'sine', 0.065, i * 0.09);
+      _tone(f, 0.16, 'sine', 0.065, i * 0.055);
     });
-    _sweep(80, 1760, 1.0, 'sine', 0.045, 0.75);
-    _tone(3520, 0.5, 'sine', 0.025, 1.8);
+    _sweep(80, 1760, 0.6, 'sine', 0.045, 0.46);
+    _tone(3520, 0.3, 'sine', 0.025, 1.1);
   },
 };
 
@@ -539,7 +539,7 @@ function _tryStartup() {
   if (!_ac || _ac.state === 'suspended') return;
   _startupFired = true;
   SFX.startup();
-  setTimeout(() => _speakText('COCO data platform online.'), 1200);
+  setTimeout(() => _speakText('COCO data platform online.'), 700);
 }
 
 // Watch for loader fade-out
