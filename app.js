@@ -604,8 +604,15 @@ function flyTo(pos, look, dur = 750) {
     camera.position.lerpVectors(sp, pos, e);
     lookAt.lerpVectors(sl, look, e);
     camera.lookAt(lookAt);
-    if (t < 1) requestAnimationFrame(step);
-    else STATE.flyActive = false;
+    if (t < 1) { requestAnimationFrame(step); return; }
+    // Back-solve spherical coords so camTick() continues from here without snapping
+    const dx = pos.x - look.x, dy = pos.y - look.y, dz = pos.z - look.z;
+    const r  = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    STATE.radius = STATE.tRadius = r;
+    STATE.phi    = STATE.tPhi    = Math.acos(Math.max(-1, Math.min(1, dy / r)));
+    STATE.theta  = STATE.tTheta  = Math.atan2(dx, dz);
+    tLookAt.copy(look);
+    STATE.flyActive = false;
   })(performance.now());
 }
 
