@@ -110,6 +110,7 @@ html, body {
 }
 .vc:hover { color: var(--text-secondary); background: rgba(255,255,255,0.04); }
 .vc.on    { color: var(--accent-blue); border-color: #3B82F625; background: #3B82F60c; }
+.vc-div   { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
 
 /* ── Search ──────────────────────────────────────────────── */
 .srch { position: relative; }
@@ -554,4 +555,53 @@ html, body {
   text-shadow:
     0 0 20px rgba(59, 130, 246, 0.6),
     0 0 50px rgba(59, 130, 246, 0.3);
+}
+
+/* ══════════════════════════════════════════════════════════
+   Isometric Platform View
+   ══════════════════════════════════════════════════════════ */
+#iso-mount {
+  position: fixed;
+  top: var(--canvas-top);
+  left: 0; right: 0; bottom: 0;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+#iso-mount canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+#iso-labels {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.iso-label {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  text-align: center;
+  padding-bottom: 6px;
+  transition: opacity 0.5s ease;
+}
+.iso-lname {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 0 8px currentColor;
+}
+.iso-lsub {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 7px;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  margin-top: 2px;
 }

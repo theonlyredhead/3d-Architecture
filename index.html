@@ -42,10 +42,17 @@
   <button class="vc on" id="vOrbit" onclick="setView('orbit')" aria-pressed="true">⟳ ORBIT</button>
   <button class="vc" id="vExp" onclick="toggleExplode()" aria-pressed="false">⊞ EXPLODE</button>
   <button class="vc" onclick="deselect()" aria-label="Clear selection">CLEAR</button>
+  <div class="vc-div" aria-hidden="true"></div>
+  <button class="vc on" id="vIso3d"   onclick="isoToggle(false)" aria-label="3D explorer view">3D EXPLORE</button>
+  <button class="vc"    id="vIsoFlat" onclick="isoToggle(true)"  aria-label="Isometric platform view">⬡ ISO</button>
 </div>
 
 <main id="three-mount" aria-label="3D architecture diagram"></main>
 <div id="label-layer" aria-hidden="true"></div>
+
+<div id="iso-mount" style="display:none" aria-label="Isometric platform view">
+  <div id="iso-labels" aria-hidden="true"></div>
+</div>
 
 <aside id="panel" aria-label="Node details" aria-hidden="true">
   <div class="pn-bar" id="pBar"></div>
@@ -102,5 +109,6 @@
 <script src="data.js"></script>
 <script src="app.js"></script>
 <script src="jarvis.js"></script>
+<script src="iso-app.js"></script>
 </body>
 </html>
