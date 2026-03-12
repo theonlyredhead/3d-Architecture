@@ -374,7 +374,27 @@ function _typewritePanel() {
   if (pDesc && pDesc.textContent) _typewrite(pDesc, pDesc.textContent, 7);
 }
 
-// ── 6. Voice readout (Web Speech API) ────────────────────
+// ── 6. Voice readout ──────────────────────────────────────
+//
+//  PRIMARY:  ElevenLabs neural TTS  (deep, JARVIS-quality)
+//  FALLBACK: Web Speech API         (browser built-in)
+//
+//  To enable ElevenLabs:
+//    1. Get a free API key at https://elevenlabs.io
+//    2. Replace the empty string below with your key
+//
+const ELEVENLABS_API_KEY  = '';          // ← paste your key here
+const ELEVENLABS_VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam — deep, authoritative
+// Other great JARVIS voices:
+//   Josh   TxGEqnHWrfWFTfGW9XjX  (crisp, measured)
+//   Arnold VR6AewLTigWG4xSOukaG  (strong, commanding)
+//   Antoni ErXwobaYiN019PkySvjV  (smooth, professional)
+
+// ElevenLabs model — eleven_multilingual_v2 is best quality,
+// eleven_turbo_v2 is faster with near-identical quality at low latency
+const ELEVENLABS_MODEL    = 'eleven_turbo_v2';
+
+// ── Web Speech API fallback ───────────────────────────────
 const _synth  = window.speechSynthesis || null;
 let   _voices = [];
 if (_synth) {
@@ -382,28 +402,134 @@ if (_synth) {
   setTimeout(() => { _voices = _synth.getVoices(); }, 300);
 }
 
-function _speakNode(id) {
-  if (!_synth) return;
-  const nd = nodeData[id]; if (!nd) return;
-  const d = nd.data;
-  const parts = [d.name];
-  if (d.type || d.sub) parts.push(d.type || d.sub);
-  if (d.uc) parts.push(`${d.uc.length} use cases`);
-  _speakText(parts.join('. '));
+// Active ElevenLabs source node (so we can stop mid-sentence)
+let _elSrc = null;
+
+// Audio processing chain — makes ElevenLabs audio feel like
+// a JARVIS helmet comm: high-shelf presence boost + light room reverb
+function _buildVoiceChain(buffer) {
+  if (!_ac) return null;
+
+  // Decode returns a buffer; wire: src → highShelf → room → masterGain → out
+  const src = _ac.createBufferSource();
+  src.buffer = buffer;
+
+  // 4 kHz presence lift (+3 dB) — adds clarity and "suit comm" quality
+  const shelf = _ac.createBiquadFilter();
+  shelf.type            = 'highShelf';
+  shelf.frequency.value = 4000;
+  shelf.gain.value      = 3;
+
+  // Very short convolution reverb using a programmatically generated
+  // impulse response (no audio files needed)
+  const reverbBuf = _buildIR(0.35, 0.4);
+  const reverb    = _ac.createConvolver();
+  reverb.buffer   = reverbBuf;
+  const dryGain   = _ac.createGain();  dryGain.gain.value  = 0.82;
+  const wetGain   = _ac.createGain();  wetGain.gain.value  = 0.18;
+  const masterGain = _ac.createGain(); masterGain.gain.value = 0.78;
+
+  src.connect(shelf);
+  shelf.connect(dryGain);   dryGain.connect(masterGain);
+  shelf.connect(reverb);    reverb.connect(wetGain);    wetGain.connect(masterGain);
+  masterGain.connect(_ac.destination);
+
+  return src;
 }
 
-function _speakText(text) {
+// Generates a short stereo room IR (exponentially decaying noise)
+function _buildIR(duration, decay) {
+  if (!_ac) return null;
+  const rate    = _ac.sampleRate;
+  const len     = Math.floor(rate * duration);
+  const ir      = _ac.createBuffer(2, len, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay * 8);
+    }
+  }
+  return ir;
+}
+
+// ElevenLabs fetch → decode → play
+async function _speakElevenLabs(text) {
+  if (!text || !ELEVENLABS_API_KEY) return false;
+  try {
+    const res = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key':    ELEVENLABS_API_KEY,
+          'Content-Type':  'application/json',
+          'Accept':        'audio/mpeg',
+        },
+        body: JSON.stringify({
+          text,
+          model_id: ELEVENLABS_MODEL,
+          voice_settings: {
+            stability:        0.55,  // slight variation = less robotic
+            similarity_boost: 0.82,
+            style:            0.25,  // subtle expressiveness
+            use_speaker_boost: true,
+          },
+        }),
+      }
+    );
+    if (!res.ok) { console.warn('[JARVIS] ElevenLabs error:', res.status); return false; }
+
+    const arrayBuf = await res.arrayBuffer();
+    if (!_ac) return false;
+
+    // Resume AudioContext if suspended (browser policy)
+    if (_ac.state === 'suspended') await _ac.resume();
+
+    const decoded = await _ac.decodeAudioData(arrayBuf);
+
+    // Stop any currently playing voice line
+    if (_elSrc) { try { _elSrc.stop(); } catch (_) {} }
+
+    _elSrc = _buildVoiceChain(decoded);
+    if (_elSrc) _elSrc.start();
+    return true;
+  } catch (err) {
+    console.warn('[JARVIS] ElevenLabs failed, falling back to browser TTS:', err.message);
+    return false;
+  }
+}
+
+// Web Speech API fallback
+function _speakBrowser(text) {
   if (!_synth || !text) return;
   _synth.cancel();
   const utt  = new SpeechSynthesisUtterance(text);
   utt.rate   = 1.05;
   utt.pitch  = 0.78;
   utt.volume = 0.65;
-  // Prefer a deep/male voice for JARVIS feel
   const PREF = ['Google UK English Male', 'Microsoft David', 'Daniel', 'Alex', 'Fred'];
   const pick = _voices.find(v => PREF.some(p => v.name.includes(p)));
   if (pick) utt.voice = pick;
   _synth.speak(utt);
+}
+
+// Main speak entry point — tries ElevenLabs first, falls back to browser
+async function _speakText(text) {
+  if (!text) return;
+  if (ELEVENLABS_API_KEY) {
+    const ok = await _speakElevenLabs(text);
+    if (ok) return;
+  }
+  _speakBrowser(text);
+}
+
+function _speakNode(id) {
+  const nd = nodeData[id]; if (!nd) return;
+  const d = nd.data;
+  const parts = [d.name];
+  if (d.type || d.sub) parts.push(d.type || d.sub);
+  if (d.uc) parts.push(`${d.uc.length} use cases`);
+  _speakText(parts.join('. '));
 }
 
 // ── 7. Startup sequence ───────────────────────────────────
