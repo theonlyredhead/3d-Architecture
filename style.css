@@ -608,3 +608,48 @@ html, body {
   white-space: nowrap;
   margin-top: 2px;
 }
+
+/* ── ISO hover card ──────────────────────────────────────── */
+#iso-card {
+  position: fixed;
+  width: 270px;
+  background: rgba(6,10,18,0.94);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+  pointer-events: none;
+  z-index: 600;
+  overflow: hidden;
+  animation: ihc-in 0.14s ease;
+}
+@keyframes ihc-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ihc-bar  { height: 3px; }
+.ihc-body { padding: 12px 14px 13px; }
+.ihc-kind {
+  font-family: var(--font-mono); font-size: 7px;
+  letter-spacing: 0.14em; color: var(--text-subtle);
+  text-transform: uppercase; margin-bottom: 5px;
+}
+.ihc-name {
+  font-family: var(--font-mono); font-size: 14px; font-weight: 700;
+  letter-spacing: 0.04em; margin-bottom: 2px; line-height: 1.2;
+}
+.ihc-sub {
+  font-family: var(--font-mono); font-size: 9px;
+  color: var(--text-secondary); margin-bottom: 9px;
+}
+.ihc-desc {
+  font-family: var(--font-sans); font-size: 11px;
+  color: var(--text-primary); line-height: 1.55; margin-bottom: 10px;
+}
+.ihc-footer {
+  font-family: var(--font-mono); font-size: 8px;
+  color: var(--text-subtle); letter-spacing: 0.08em;
+  text-transform: uppercase; border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
