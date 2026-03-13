@@ -110,7 +110,7 @@ const ISO = (() => {
         isoComposer = new THREE.EffectComposer(renderer);
         isoComposer.addPass(new THREE.RenderPass(scene, camera));
         const bloom = new THREE.UnrealBloomPass(
-          new THREE.Vector2(W(), H()), 1.1, 0.45, 0.12
+          new THREE.Vector2(W(), H()), 0.65, 0.4, 0.32
         );
         isoComposer.addPass(bloom);
         isoRenderFn = () => isoComposer.render();
@@ -189,7 +189,7 @@ const ISO = (() => {
     // Top pad: coloured, emissive glow
     const topW = scale * 5.0, topH = scale * 0.45;
     const topMat = new THREE.MeshStandardMaterial({
-      color: col, emissive: col, emissiveIntensity: 0.55,
+      color: col, emissive: col, emissiveIntensity: 0.28,
       roughness: 0.25, metalness: 0.60,
     });
     const top = new THREE.Mesh(new THREE.BoxGeometry(topW, topH, topW), topMat);
@@ -199,7 +199,7 @@ const ISO = (() => {
 
     // Top surface glow plane (additive, very thin)
     const glowMat = new THREE.MeshBasicMaterial({
-      color: col, transparent: true, opacity: 0.55,
+      color: col, transparent: true, opacity: 0.28,
       blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
     });
     const glow = new THREE.Mesh(new THREE.PlaneGeometry(topW * 0.88, topW * 0.88), glowMat);
@@ -256,7 +256,7 @@ const ISO = (() => {
     const tube = new THREE.Mesh(
       new THREE.TubeGeometry(curve, 32, thick, 6, false),
       new THREE.MeshBasicMaterial({
-        color: col, transparent: true, opacity: 0.22,
+        color: col, transparent: true, opacity: 0.55,
         blending: THREE.AdditiveBlending, depthWrite: false,
       })
     );
