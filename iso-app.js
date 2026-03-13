@@ -1,140 +1,160 @@
 // ══════════════════════════════════════════════════════════
 //  Isometric Platform View  —  iso-app.js
 //  Lazy-initialised on first show().
-//  Reads globals from data.js: SOURCES, OUTPUTS
-//  Core node colours/names are inline below.
 // ══════════════════════════════════════════════════════════
 
 const ISO = (() => {
+
   // ── Core node definitions ──────────────────────────────
   const CORE = [
-    { id: 'iso-api', hex: '#3B82F6', name: 'COCO API',   sub: 'ASP.NET Core · Azure APIM', scale: 1.4 },
-    { id: 'iso-db',  hex: '#10B981', name: 'Central DB', sub: 'Azure SQL · pgvector',       scale: 1.6 },
-    { id: 'iso-ai',  hex: '#FB923C', name: 'AI Engine',  sub: 'Claude 3.5 · LangChain',     scale: 1.2 },
+    { id: 'iso-api', hex: '#3B82F6', name: 'COCO API',   sub: 'ASP.NET Core · Azure APIM', scale: 2.2 },
+    { id: 'iso-db',  hex: '#10B981', name: 'Central DB', sub: 'Azure SQL · pgvector',       scale: 2.6 },
+    { id: 'iso-ai',  hex: '#FB923C', name: 'AI Engine',  sub: 'Claude 3.5 · LangChain',     scale: 1.9 },
   ];
 
   // ── Layout: [x, z]  (screen-right = +x −z; screen-left = −x +z) ──
-  // Sources fan out to the screen-left (back-left in world space)
+  // Sources: upper-left quadrant in world, appears left on screen
   const SRC_POS = [
-    [-22, 28], [-12, 32], [ -2, 32], [  8, 30],   // row 0
-    [-20, 18], [-10, 22], [  0, 22],               // row 1
-    [-18,  9], [ -8, 13], [  2, 13],               // row 2
-    [-14,  3],                                     // row 3
+    [-38, 44], [-20, 48], [ -2, 50], [ 16, 48],   // row 0 — 4 nodes
+    [-32, 30], [-14, 32], [  4, 32],               // row 1 — 3 nodes
+    [-26, 16], [ -8, 18], [ 10, 16],               // row 2 — 3 nodes
+    [-18,  4],                                     // row 3 — 1 node
   ];
 
-  // Core platform positions (centred)
+  // Core: centre
   const CORE_POS = {
-    'iso-api': [ -2, -4 ],
-    'iso-db':  [  5,  2 ],
-    'iso-ai':  [ -2, -12],
+    'iso-api': [ -6,  -4 ],
+    'iso-db':  [  6,   4 ],
+    'iso-ai':  [ -2, -16 ],
   };
 
-  // Outputs fan to the screen-right (front-right in world space)
+  // Outputs: lower-right quadrant, appears right on screen
   const OUT_POS = [
-    [ 20, -10],
-    [ 28,  -4],
-    [ 20,  -18],
-    [ 28,  -16],
+    [ 28,  -4 ],
+    [ 40,   4 ],
+    [ 28, -18 ],
+    [ 40, -12 ],
   ];
 
   // ── State ──────────────────────────────────────────────
   let renderer, scene, camera, isoComposer;
   let isoRenderFn = null;
   let _active = false, _raf = null, _clock = 0, _lastT = 0;
-  const _platforms = [];  // { group, baseY, phase, labelEl, id }
-  const _conns     = [];  // { pMesh, curve, phases, speed, pArr }
-  const _platMap   = {};  // id → platform entry
+  const _platforms = [];
+  const _conns     = [];
+  const _platMap   = {};
 
   // ── Lazy init ──────────────────────────────────────────
   function _init() {
-    if (renderer) return;   // already initialised
+    if (renderer) return;
 
     const mount = document.getElementById('iso-mount');
+    const W = () => mount.clientWidth;
+    const H = () => mount.clientHeight;
 
     // Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    renderer.setSize(W(), H());
     renderer.setClearColor(0x060a12);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mount.appendChild(renderer.domElement);
 
     // Scene
     scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x060a12, 0.006);
 
-    // Orthographic isometric camera
-    _resizeCam(mount);
+    // Isometric orthographic camera
+    // sz controls zoom — smaller = bigger platforms on screen
+    const sz = 55;
+    const asp = W() / H();
+    camera = new THREE.OrthographicCamera(
+      -sz * asp, sz * asp, sz, -sz, 0.1, 800
+    );
+    // Classic isometric: equal distance on all 3 axes
+    camera.position.set(140, 140, 140);
+    // Look at the centroid of the scene (sources are back-left, outputs front-right)
+    camera.lookAt(4, 0, 16);
 
     // Lighting
-    scene.add(new THREE.AmbientLight(0x7090b8, 0.7));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-    sun.position.set(60, 120, 60);
-    scene.add(sun);
-    const rim = new THREE.DirectionalLight(0x3B82F6, 0.4);
-    rim.position.set(-60, 40, -60);
-    scene.add(rim);
+    const ambient = new THREE.AmbientLight(0x8090b0, 0.55);
+    scene.add(ambient);
 
-    // Grid floor
-    const grid = new THREE.GridHelper(160, 32, 0x0d1f35, 0x09141f);
-    grid.position.y = -0.6;
+    const key = new THREE.DirectionalLight(0xffffff, 1.1);
+    key.position.set(80, 160, 80);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.camera.near = 1;
+    key.shadow.camera.far  = 600;
+    key.shadow.camera.left = key.shadow.camera.bottom = -120;
+    key.shadow.camera.right = key.shadow.camera.top   =  120;
+    scene.add(key);
+
+    const fill = new THREE.DirectionalLight(0x3060ff, 0.35);
+    fill.position.set(-80, 60, -80);
+    scene.add(fill);
+
+    const back = new THREE.DirectionalLight(0xff8030, 0.15);
+    back.position.set(0, 40, -120);
+    scene.add(back);
+
+    // Grid floor (subtle)
+    const grid = new THREE.GridHelper(240, 40, 0x0f2030, 0x0a1620);
+    grid.position.y = -0.8;
+    grid.receiveShadow = true;
     scene.add(grid);
 
-    // Bloom post-processing
+    // Bloom
     if (typeof THREE.EffectComposer !== 'undefined') {
       try {
         isoComposer = new THREE.EffectComposer(renderer);
         isoComposer.addPass(new THREE.RenderPass(scene, camera));
         const bloom = new THREE.UnrealBloomPass(
-          new THREE.Vector2(mount.clientWidth, mount.clientHeight),
-          1.4, 0.5, 0.08
+          new THREE.Vector2(W(), H()), 1.1, 0.45, 0.12
         );
         isoComposer.addPass(bloom);
         isoRenderFn = () => isoComposer.render();
+        window.addEventListener('resize', () => isoComposer.setSize(W(), H()));
       } catch (_) {}
     }
     if (!isoRenderFn) isoRenderFn = () => renderer.render(scene, camera);
 
-    // Label container (HTML overlay)
+    // Label container
     const lc = document.getElementById('iso-labels');
 
-    // Build all platforms
+    // ── Build platforms ──────────────────────────────────
     SOURCES.forEach((s, i) => {
-      const [x, z] = SRC_POS[i] || [-20 + i * 3, 30];
-      _addPlatform(s.id, x, z, s.hex, s.name, s.type || '', 0.72, lc);
+      const [x, z] = SRC_POS[i] || [-20 + i * 4, 40];
+      _addPlatform(s.id, x, z, s.hex, s.name, s.type || '', 1.0, lc);
     });
-
     OUTPUTS.forEach((o, i) => {
-      const [x, z] = OUT_POS[i] || [22 + i * 4, -10];
-      _addPlatform(o.id, x, z, o.hex, o.name, o.type || '', 0.72, lc);
+      const [x, z] = OUT_POS[i] || [30 + i * 6, 0];
+      _addPlatform(o.id, x, z, o.hex, o.name, o.type || '', 1.0, lc);
     });
-
     CORE.forEach(c => {
       const [x, z] = CORE_POS[c.id];
       _addPlatform(c.id, x, z, c.hex, c.name, c.sub, c.scale, lc);
     });
 
-    // Build connections
+    // ── Build connections ────────────────────────────────
     const apiP = _platMap['iso-api'];
     const dbP  = _platMap['iso-db'];
     const aiP  = _platMap['iso-ai'];
 
-    // Every source → API
     SOURCES.forEach(s => {
       const sp = _platMap[s.id];
-      if (sp && apiP) _addConn(sp, apiP, s.hex, 0.045);
+      if (sp && apiP) _addConn(sp, apiP, s.hex, 0.05);
     });
 
-    // Core interconnects (thicker)
-    if (apiP && dbP) _addConn(apiP, dbP, '#3B82F6', 0.13);
-    if (apiP && aiP) _addConn(apiP, aiP, '#FB923C', 0.11);
-    if (dbP  && aiP) _addConn(dbP,  aiP, '#10B981', 0.10);
+    if (apiP && dbP) _addConn(apiP, dbP, '#4fa6ff', 0.18);
+    if (apiP && aiP) _addConn(apiP, aiP, '#ff9f50', 0.15);
+    if (dbP  && aiP) _addConn(dbP,  aiP, '#30d499', 0.14);
 
-    // Core → outputs (each output from its most relevant core)
     const coreOwners = [dbP, apiP, aiP, dbP];
     OUTPUTS.forEach((o, i) => {
       const op   = _platMap[o.id];
       const core = coreOwners[i % 3];
-      if (op && core) _addConn(core, op, o.hex, 0.07);
+      if (op && core) _addConn(core, op, o.hex, 0.09);
     });
 
     window.addEventListener('resize', () => _onResize(mount));
@@ -142,47 +162,60 @@ const ISO = (() => {
 
   // ── Platform factory ───────────────────────────────────
   function _addPlatform(id, wx, wz, hex, name, sub, scale, labelContainer) {
-    const col  = parseInt(hex.replace('#', ''), 16);
-    const grp  = new THREE.Group();
+    const col = parseInt(hex.replace('#', ''), 16);
+    const grp = new THREE.Group();
 
-    // Three stacked slabs: base → mid → top
-    [
-      [scale * 5.8, 0.50, 0x080f1c, 0.85],
-      [scale * 4.6, 0.38, 0x0c1829, 0.75],
-      [scale * 3.4, 0.32, col,      0.40],  // coloured top
-    ].forEach(([size, h, color, ei], i) => {
-      const m = new THREE.MeshStandardMaterial({
-        color,
-        emissive: color,
-        emissiveIntensity: i === 2 ? ei : 0.0,
-        roughness: i === 2 ? 0.35 : 0.85,
-        metalness: i === 2 ? 0.55 : 0.15,
-      });
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, h, size), m);
-      mesh.position.y = [0, 0.44, 0.82][i];
-      grp.add(mesh);
+    // ── Slab stack ──────────────────────────────────────
+    // Base: wide, very dark, subtle edge highlight
+    const baseW = scale * 8, baseH = scale * 0.9;
+    const baseMat = new THREE.MeshStandardMaterial({
+      color: 0x0a1520, roughness: 0.92, metalness: 0.05,
     });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(baseW, baseH, baseW), baseMat);
+    base.position.y = baseH / 2;
+    base.castShadow = base.receiveShadow = true;
+    grp.add(base);
 
-    // Thin diamond glow ring lying flat on top
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: col,
-      transparent: true, opacity: 0.45,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide, depthWrite: false,
+    // Mid slab: slightly smaller, darker edge, coloured tint
+    const midW = scale * 6.4, midH = scale * 0.55;
+    const midMat = new THREE.MeshStandardMaterial({
+      color: 0x0d1e2e, roughness: 0.85, metalness: 0.10,
     });
-    const ring = new THREE.Mesh(new THREE.RingGeometry(scale * 1.3, scale * 1.75, 4), ringMat);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 1.15;
-    grp.add(ring);
+    const mid = new THREE.Mesh(new THREE.BoxGeometry(midW, midH, midW), midMat);
+    mid.position.y = baseH + midH / 2;
+    mid.castShadow = mid.receiveShadow = true;
+    grp.add(mid);
 
-    // Vertical glow pillar (thin box, additive)
-    const pillarMat = new THREE.MeshBasicMaterial({
-      color: col, transparent: true, opacity: 0.08,
-      blending: THREE.AdditiveBlending, depthWrite: false,
+    // Top pad: coloured, emissive glow
+    const topW = scale * 5.0, topH = scale * 0.45;
+    const topMat = new THREE.MeshStandardMaterial({
+      color: col, emissive: col, emissiveIntensity: 0.55,
+      roughness: 0.25, metalness: 0.60,
     });
-    const pillar = new THREE.Mesh(new THREE.BoxGeometry(scale * 0.5, 3.5, scale * 0.5), pillarMat);
-    pillar.position.y = 2.5;
-    grp.add(pillar);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(topW, topH, topW), topMat);
+    top.position.y = baseH + midH + topH / 2;
+    top.castShadow = true;
+    grp.add(top);
+
+    // Top surface glow plane (additive, very thin)
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: col, transparent: true, opacity: 0.55,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    });
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(topW * 0.88, topW * 0.88), glowMat);
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.y = baseH + midH + topH + 0.01;
+    grp.add(glow);
+
+    // Corner accent pillars (tiny, bright)
+    const pillarH = scale * 1.0;
+    const offsets = [[-1,-1],[1,-1],[-1,1],[1,1]].map(([sx,sz]) => [sx * topW * 0.42, sz * topW * 0.42]);
+    offsets.forEach(([ox, oz]) => {
+      const pm = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.7 });
+      const pp = new THREE.Mesh(new THREE.BoxGeometry(scale * 0.18, pillarH, scale * 0.18), pm);
+      pp.position.set(ox, baseH + midH + topH + pillarH / 2, oz);
+      grp.add(pp);
+    });
 
     grp.position.set(wx, 0, wz);
     scene.add(grp);
@@ -196,8 +229,11 @@ const ISO = (() => {
     el.style.opacity = '0';
     labelContainer.appendChild(el);
 
-    const phase = Math.random() * Math.PI * 2;
-    const entry = { group: grp, baseY: 0, phase, labelEl: el, id };
+    const topY = baseH + midH + topH;
+    const entry = {
+      group: grp, baseY: 0, phase: Math.random() * Math.PI * 2,
+      labelEl: el, id, topY,
+    };
     _platforms.push(entry);
     _platMap[id] = entry;
   }
@@ -207,33 +243,32 @@ const ISO = (() => {
     const col = parseInt(hex.replace('#', ''), 16);
     const fp  = from.group.position;
     const tp  = to.group.position;
-
     const dist = fp.distanceTo(tp);
-    const arcH = 2.2 + dist * 0.07;
+    const arcH  = 3.5 + dist * 0.10;
 
     const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(fp.x, 1.1, fp.z),
+      new THREE.Vector3(fp.x, from.topY + 0.3, fp.z),
       new THREE.Vector3((fp.x + tp.x) / 2, arcH, (fp.z + tp.z) / 2),
-      new THREE.Vector3(tp.x, 1.1, tp.z),
+      new THREE.Vector3(tp.x, to.topY + 0.3, tp.z),
     ]);
 
-    // Static tube
+    // Tube mesh
     const tube = new THREE.Mesh(
-      new THREE.TubeGeometry(curve, 28, thick, 5, false),
+      new THREE.TubeGeometry(curve, 32, thick, 6, false),
       new THREE.MeshBasicMaterial({
-        color: col, transparent: true, opacity: 0.18,
+        color: col, transparent: true, opacity: 0.22,
         blending: THREE.AdditiveBlending, depthWrite: false,
       })
     );
     scene.add(tube);
 
-    // Flowing particle dots
-    const N    = 5;
+    // Flowing particles
+    const N    = 6;
     const pArr = new Float32Array(N * 3);
     const pGeo = new THREE.BufferGeometry();
     pGeo.setAttribute('position', new THREE.BufferAttribute(pArr, 3));
     const pMesh = new THREE.Points(pGeo, new THREE.PointsMaterial({
-      color: col, size: 0.28, transparent: true, opacity: 0.95,
+      color: col, size: 0.45, transparent: true, opacity: 0.95,
       blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
     }));
     scene.add(pMesh);
@@ -241,12 +276,12 @@ const ISO = (() => {
     _conns.push({
       pMesh, curve,
       phases: Array.from({ length: N }, (_, i) => i / N),
-      speed:  0.004 + Math.random() * 0.003,
+      speed:  0.0035 + Math.random() * 0.002,
       pArr,
     });
   }
 
-  // ── 3-D → screen projection ────────────────────────────
+  // ── 3D → screen ────────────────────────────────────────
   const _pv = new THREE.Vector3();
   function _toScreen(wx, wy, wz) {
     const mount = document.getElementById('iso-mount');
@@ -255,28 +290,14 @@ const ISO = (() => {
     return { x: (_pv.x * 0.5 + 0.5) * W, y: (-_pv.y * 0.5 + 0.5) * H };
   }
 
-  // ── Camera resize ──────────────────────────────────────
-  function _resizeCam(mount) {
-    const W = mount.clientWidth, H = mount.clientHeight;
-    const asp = W / H, sz = 60;
-    if (!camera) {
-      camera = new THREE.OrthographicCamera(
-        -sz * asp, sz * asp, sz, -sz, 0.1, 600
-      );
-      camera.position.set(100, 100, 100);
-      camera.lookAt(0, 0, 0);
-    } else {
-      camera.left = -sz * asp; camera.right = sz * asp;
-      camera.top  =  sz;       camera.bottom = -sz;
-      camera.updateProjectionMatrix();
-    }
-  }
-
+  // ── Resize ─────────────────────────────────────────────
   function _onResize(mount) {
     const W = mount.clientWidth, H = mount.clientHeight;
     renderer.setSize(W, H);
-    if (isoComposer) isoComposer.setSize(W, H);
-    _resizeCam(mount);
+    const sz = 55, asp = W / H;
+    camera.left = -sz * asp; camera.right = sz * asp;
+    camera.top  =  sz;       camera.bottom = -sz;
+    camera.updateProjectionMatrix();
   }
 
   // ── Animation loop ─────────────────────────────────────
@@ -289,12 +310,12 @@ const ISO = (() => {
     _lastT  = now;
     _clock += delta;
 
-    // Bob platforms
+    // Bob
     _platforms.forEach(p => {
-      p.group.position.y = p.baseY + Math.sin(_clock * 0.65 + p.phase) * 0.3;
+      p.group.position.y = p.baseY + Math.sin(_clock * 0.65 + p.phase) * 0.35;
     });
 
-    // Advance particles along curves
+    // Flow particles
     _conns.forEach(c => {
       for (let i = 0; i < c.phases.length; i++) {
         c.phases[i] = (c.phases[i] + c.speed) % 1;
@@ -306,10 +327,10 @@ const ISO = (() => {
       c.pMesh.geometry.attributes.position.needsUpdate = true;
     });
 
-    // Update HTML labels
+    // Labels
     _platforms.forEach(p => {
       const gp = p.group.position;
-      const sc = _toScreen(gp.x, gp.y + 2.4, gp.z);
+      const sc = _toScreen(gp.x, gp.y + p.topY + 0.8, gp.z);
       p.labelEl.style.left    = sc.x + 'px';
       p.labelEl.style.top     = sc.y + 'px';
       p.labelEl.style.opacity = '1';
@@ -337,7 +358,7 @@ const ISO = (() => {
 
 // ── View toggle ────────────────────────────────────────────
 function isoToggle(on) {
-  const isoMount  = document.getElementById('iso-mount');
+  const isoMount   = document.getElementById('iso-mount');
   const threeMount = document.getElementById('three-mount');
   const labelLayer = document.getElementById('label-layer');
   const filterbar  = document.getElementById('filterbar');
@@ -352,7 +373,6 @@ function isoToggle(on) {
     threeMount.style.display  = 'none';
     labelLayer.style.display  = 'none';
     filterbar.style.display   = 'none';
-    vctrlsEl.style.display    = 'none';
     if (keyEl)  keyEl.style.display  = 'none';
     if (skeyEl) skeyEl.style.display = 'none';
     if (kbdEl)  kbdEl.style.display  = 'none';
@@ -365,7 +385,6 @@ function isoToggle(on) {
     threeMount.style.display  = '';
     labelLayer.style.display  = '';
     filterbar.style.display   = '';
-    vctrlsEl.style.display    = '';
     if (keyEl)  keyEl.style.display  = '';
     if (skeyEl) skeyEl.style.display = '';
     if (kbdEl)  kbdEl.style.display  = '';
